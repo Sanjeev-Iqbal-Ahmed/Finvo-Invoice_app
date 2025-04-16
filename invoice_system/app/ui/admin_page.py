@@ -68,17 +68,18 @@ class AdminPage(QDialog):
         
         # Form fields
         self.company_name = QLineEdit()
-        self.company_name.setPlaceholderText("Customer GSTIN/URP")
+        self.company_name.setPlaceholderText("")
         
         self.gstin = QLineEdit()
-        self.gstin.setPlaceholderText("Customer GSTIN/URP")
+        self.gstin.setPlaceholderText("")
         
         self.contact = QLineEdit()
-        self.contact.setPlaceholderText("Customer GSTIN/URP")
+        self.contact.setPlaceholderText("")
         
         self.address = QTextEdit()
         self.address.setMaximumHeight(100)
         self.address.setPlaceholderText("")
+        self.address.setStyleSheet("background-color:#F8FAFC")
         
         # Add fields to form
         company_form.addRow("Company Name:", self.company_name)
@@ -130,16 +131,16 @@ class AdminPage(QDialog):
         
         # Bank form fields
         self.bank_name = QLineEdit()
-        self.bank_name.setPlaceholderText("Enter the Customer Name")
+        self.bank_name.setPlaceholderText("")
         
         self.account_number = QLineEdit()
-        self.account_number.setPlaceholderText("Enter the Customer Name")
+        self.account_number.setPlaceholderText("")
         
         self.bank_ifsc = QLineEdit()
-        self.bank_ifsc.setPlaceholderText("Enter the Customer Name")
+        self.bank_ifsc.setPlaceholderText("")
         
         self.bank_branch = QLineEdit()
-        self.bank_branch.setPlaceholderText("Enter the Bank Branch Name")
+        self.bank_branch.setPlaceholderText("")
         
         # Add fields to bank form
         bank_layout.addRow("Bank Name:", self.bank_name)
