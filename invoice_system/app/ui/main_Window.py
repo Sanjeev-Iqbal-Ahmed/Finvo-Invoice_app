@@ -10,6 +10,7 @@ from .inventory import InventoryView
 from .customers_view import CustomerView
 from .admin_page import AdminPage
 from .styles import load_stylesheet
+from .add_items import AddItemPage
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -51,18 +52,21 @@ class MainWindow(QMainWindow):
         self.invoice_page = InvoiceView()
         self.challan_page = ChallanView()
         self.inventory_page = InventoryView()
+        self.addItems_page= AddItemPage()
         self.customers_page = CustomerView()
         
         # Add pages to stacked widget
         self.stacked_widget.addWidget(self.invoice_page)
         self.stacked_widget.addWidget(self.challan_page)
         self.stacked_widget.addWidget(self.inventory_page)
+        self.stacked_widget.addWidget(self.addItems_page)
         self.stacked_widget.addWidget(self.customers_page)
         
         # Connect signals
         self.sidebar.invoice_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.invoice_page))
         self.sidebar.challan_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.challan_page))
         self.sidebar.inventory_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.inventory_page))
+        self.sidebar.add_inventory_button.clicked.connect(lambda:self.stacked_widget.setCurrentWidget(self.addItems_page))
         self.sidebar.customers_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.customers_page))
         
         """  # Connect submenu signals

@@ -12,7 +12,7 @@ class AdminPage(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Company Administration")
         self.resize(700, 600)
-        self.setMinimumSize(650, 550)
+        self.setMinimumSize(700, 600)
         self.setStyleSheet("""
             QWidget { 
                 background-color: #A6AEBF; 
@@ -99,13 +99,13 @@ class AdminPage(QDialog):
         
         # Logo buttons
         self.add_logo_btn = QPushButton("Add/Change Logo")
-        self.add_logo_btn.setObjectName("logoButton")
         self.add_logo_btn.clicked.connect(self.add_logo)
+        self.add_logo_btn.setStyleSheet("background-color:#666666;color:white")
         
         self.remove_logo_btn = QPushButton("Remove Logo")
-        self.remove_logo_btn.setObjectName("logoButton")
         self.remove_logo_btn.clicked.connect(self.remove_logo)
-        
+        self.remove_logo_btn.setStyleSheet("background-color:#666666;color:white")
+
         logo_layout.addWidget(self.logo_frame)
         logo_layout.addSpacing(15)
         logo_layout.addWidget(self.add_logo_btn)
