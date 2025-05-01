@@ -5,37 +5,44 @@ from PySide6.QtWidgets import (
     QFrame, QGridLayout, QHeaderView, QSizePolicy, QComboBox
 )
 from PySide6.QtGui import QFont, QKeyEvent
+from ..models.db_manager import create_tables, save_invoice
+
 
 class CustomTableWidget(QTableWidget):
     def __init__(self, rows, cols, parent=None):
         super().__init__(rows, cols, parent)
-        
-
+       
 class CreateInvoice(QWidget):
     def table_key_press_event(self, event):
         if event.key() in (Qt.Key_Return, Qt.Key_Enter):
             current = self.items_table.currentIndex()
             row, col = current.row(), current.column()
 
-        # Move to the next column
-        if col < self.items_table.columnCount() - 1:
-            next_col = col + 1
-            while next_col < self.items_table.columnCount() and self.items_table.isColumnHidden(next_col):
-                next_col += 1  # Skip hidden columns if any
-            self.items_table.setCurrentCell(row, next_col)
-        else:
-            # Move to the first column of the next row
-            next_row = row + 1
-            if next_row < self.items_table.rowCount():
-                self.items_table.setCurrentCell(next_row, 0)
+            # Move to the next column
+            if col < self.items_table.columnCount() - 1:
+                next_col = col + 1
+                while next_col < self.items_table.columnCount() and self.items_table.isColumnHidden(next_col):
+                    next_col += 1  # Skip hidden columns if any
+                self.items_table.setCurrentCell(row, next_col)
             else:
-                 QTableWidget.keyPressEvent(self.items_table, event)
+                # Move to the first column of the next row
+                next_row = row + 1
+                if next_row < self.items_table.rowCount():
+                    self.items_table.setCurrentCell(next_row, 0)
+                else:
+                    # Let the default handler take care of it
+                    self.items_table.keyPressEvent(event)
+        else:
+            # For other keys, use default handling
+            self.items_table.keyPressEvent(event)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Create Invoice")
         self.resize(1200, 800)
+        create_tables()
         
+
         # Create a main scroll area for the entire window
         main_scroll = QScrollArea()
         main_scroll.setWidgetResizable(True)
@@ -229,9 +236,6 @@ class CreateInvoice(QWidget):
         for i in range(1, 7):
             header.setSectionResizeMode(i, QHeaderView.Interactive)
 
-        # Install event filter for Enter key navigation
-        self.items_table.keyPressEvent = self.table_key_press_event
-
         # Populate row numbers
         self.update_row_numbers()
         
@@ -289,12 +293,14 @@ class CreateInvoice(QWidget):
         cancel_button.clicked.connect(self.close)
         button_layout.addWidget(cancel_button)
         
-        save_button = QPushButton("Save")
-        save_button.setObjectName("saveButton")
-        button_layout.addWidget(save_button)
+        self.save_button = QPushButton("Save")
+        self.save_button.setObjectName("saveButton")
+        self.save_button.clicked.connect(self.save_invoice_to_db)
+        button_layout.addWidget(self.save_button)
         
         save_print_button = QPushButton("Save & Print")
         save_print_button.setObjectName("saveAndPrintButton")
+        save_print_button.clicked.connect(self.save_and_print)
         button_layout.addWidget(save_print_button)
         
         main_layout.addLayout(button_layout)
@@ -360,15 +366,104 @@ class CreateInvoice(QWidget):
         # Clear table
         for row in range(self.items_table.rowCount()):
             for col in range(self.items_table.columnCount()):
-                item = self.items_table.item(row, col)
-                if item:
-                    item.setText("")
-                else:
-                    # If cell is empty, create a new empty item
-                    self.items_table.setItem(row, col, QTableWidgetItem(""))
+                self.items_table.setItem(row, col, QTableWidgetItem(""))
         
         # Clear GST fields
         self.grand_total.clear()
         for gst_type, fields in self.gst_fields.items():
             for field in fields:
                 field.clear()
+
+    def get_cell_text(self, row, col):
+        """Safely get text from a table cell"""
+        item = self.items_table.item(row, col)
+        return item.text() if item else ""
+
+    def save_invoice_to_db(self):
+        try:
+            # Validate required fields
+            if not self.invoice_no.text():
+                print("Error: Invoice number is required")
+                return
+            
+            # Try to parse grand total as float if provided
+            grand_total = 0.0
+            if self.grand_total.text():
+                try:
+                    grand_total = float(self.grand_total.text())
+                except ValueError:
+                    print("Error: Grand total must be a valid number")
+                    return
+                
+            invoice_data = {
+                "customer_name": self.customer_name.text(),
+                "customer_address": self.customer_address.text(),
+                "gstin": self.customer_gstin.text(),
+                "state": self.customer_state.text(),
+                "state_code": self.state_code.text(),
+                "invoice_no": self.invoice_no.text(),
+                "date": self.invoice_date.text(),
+                "challan": self.challan_no.text() if self.challan_combo.currentText() == "YES" else "",
+                "transporter": self.transporter_no.text() if self.transporter_combo.currentText() == "YES" else "",
+                "consignment": self.consignment_no.text() if self.consignment_combo.currentText() == "YES" else "",
+                "grand_total": grand_total
+            }
+
+            items = []
+            for row in range(self.items_table.rowCount()):
+                description = self.get_cell_text(row, 0)
+                if not description:  # Skip empty rows
+                    continue
+                    
+                # Try to parse numeric values
+                try:
+                    quantity = int(self.get_cell_text(row, 2)) if self.get_cell_text(row, 2) else 0
+                except ValueError:
+                    print(f"Error in row {row+1}: Quantity must be a number")
+                    return
+                    
+                try:
+                    rate = float(self.get_cell_text(row, 4)) if self.get_cell_text(row, 4) else 0.0
+                except ValueError:
+                    print(f"Error in row {row+1}: Rate must be a number")
+                    return
+                    
+                try:
+                    gst = float(self.get_cell_text(row, 5)) if self.get_cell_text(row, 5) else 0.0
+                except ValueError:
+                    print(f"Error in row {row+1}: GST must be a number")
+                    return
+                    
+                try:
+                    total = float(self.get_cell_text(row, 6)) if self.get_cell_text(row, 6) else 0.0
+                except ValueError:
+                    print(f"Error in row {row+1}: Total must be a number")
+                    return
+                
+                item_data = {
+                    "description": description,
+                    "hsn": self.get_cell_text(row, 1),
+                    "quantity": quantity,
+                    "type": self.get_cell_text(row, 3),
+                    "rate": rate,
+                    "gst": gst,
+                    "total": total,
+                }
+                items.append(item_data)
+
+            if not items:
+                print("Error: At least one item is required")
+                return
+                
+            # Save to database
+            save_invoice(invoice_data, items)
+            print("Invoice saved successfully!")
+            
+        except Exception as e:
+            print(f"Error saving invoice: {str(e)}")
+            
+    def save_and_print(self):
+        # First save the invoice
+        self.save_invoice_to_db()
+        # Then implement print functionality here
+        print("Printing functionality to be implemented")

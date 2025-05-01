@@ -243,3 +243,5 @@ class AdminPage(QDialog):
         
         # Close the dialog
         self.accept()
+
+        
