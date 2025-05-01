@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (
     QSpacerItem, QSizePolicy, QPushButton
 )
 from .create_invoice import CreateInvoice
+from .admin_page import AdminPage
 
 class SidebarButton(QToolButton):
     def __init__(self, text, has_icon=True, parent=None):
@@ -146,6 +147,7 @@ class Sidebar(QFrame):
         self.challan_button.clicked.connect(self.activate_challan)
         self.inventory_button.clicked.connect(self.activate_inventory)
         self.customers_button.clicked.connect(self.activate_customers)
+        self.admin_sidebar_button.clicked.connect(self.open_admin)
     
     def toggle_invoice_menu(self):
         # Calculate the expanded height based on content
@@ -259,4 +261,9 @@ class Sidebar(QFrame):
     def open_createInvoice_page(self):
         self.createInvoice_window=CreateInvoice(None)
         self.createInvoice_window.show()
+
+    def open_admin(self):
+        self.admin_window=AdminPage()
+        self.admin_window.show()
+
         

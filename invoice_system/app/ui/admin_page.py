@@ -11,8 +11,9 @@ class AdminPage(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Company Administration")
-        self.resize(700, 600)
-        self.setMinimumSize(700, 600)
+        self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint|
+                            Qt.WindowCloseButtonHint)
+        self.setMinimumSize(700, 650)
         self.setStyleSheet("""
             QWidget { 
                 background-color: #A6AEBF; 

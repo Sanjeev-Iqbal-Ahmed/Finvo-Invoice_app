@@ -17,7 +17,7 @@ class AddItemPage(QWidget):
         main_layout.setSpacing(20)
         self.setStyleSheet("""
             QWidget { 
-                background-color: #A6AEBF; 
+                 background-color: #A6AEBF;
                 color: #333333; font-weight:bold;
             }
             QLineEdit {
@@ -32,10 +32,12 @@ class AddItemPage(QWidget):
                 font-weight: bold;
             }
             #pageHeader{
-                font-weight:bold;font-size:15px;
+                font-weight:bold;
+                font-size:16px;
             }
             #formContainer{
-                background-color:#A6AEBF;font-weight:bold;
+                background-color:#A6AEBF;
+                font-weight:bold;
                 color:black;font-size:12px;
             }
             QTextEdit, QSpinBox, QDoubleSpinBox,QComboBox {
@@ -71,7 +73,6 @@ class AddItemPage(QWidget):
         header_label.setObjectName("pageHeader")
         header_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(header_label)
-        
         
         # Form container
         form_container = QFrame()
@@ -149,14 +150,10 @@ class AddItemPage(QWidget):
         self.clear_button.setObjectName("clearButton")
         self.clear_button.setMinimumWidth(120)
         
-        self.back_button = QPushButton("Back")
-        self.back_button.setObjectName("backButton")
-        self.back_button.setMinimumWidth(120)
         
         buttons_layout.addStretch()
         buttons_layout.addWidget(self.save_button)
         buttons_layout.addWidget(self.clear_button)
-        buttons_layout.addWidget(self.back_button)
         buttons_layout.addStretch()
         
         main_layout.addLayout(buttons_layout)
