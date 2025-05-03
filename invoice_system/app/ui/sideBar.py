@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 )
 from .create_invoice import CreateInvoice
 from .admin_page import AdminPage
+from .create_challan import CreateChallan
 
 class SidebarButton(QToolButton):
     def __init__(self, text, has_icon=True, parent=None):
@@ -91,6 +92,7 @@ class Sidebar(QFrame):
         
         self.create_challan_button = SubMenuButton("Create Challan")
         self.challan_menu_layout.addWidget(self.create_challan_button)
+        self.create_challan_button.clicked.connect(self.open_challanPage)
         
         self.manage_challan_button = SubMenuButton("Manage Challan")
         self.challan_menu_layout.addWidget(self.manage_challan_button)
@@ -266,4 +268,7 @@ class Sidebar(QFrame):
         self.admin_window=AdminPage()
         self.admin_window.show()
 
+    def open_challanPage(self):
+        self.createChallan_window=CreateChallan()
+        self.createChallan_window.show()
         

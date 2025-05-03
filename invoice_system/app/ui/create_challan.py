@@ -2,48 +2,18 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QTableWidget, QTableWidgetItem, QPushButton, QScrollArea,
-    QFrame, QGridLayout, QHeaderView, QSizePolicy, QComboBox
+    QFrame, QGridLayout, QHeaderView, QSizePolicy, QComboBox,
+    QTextEdit,QMessageBox
 )
 from PySide6.QtGui import QFont, QKeyEvent
-from ..models.db_manager import create_tables, save_invoice
 
-class CustomTableWidget(QTableWidget):
-    def __init__(self, rows, cols, parent=None):
-        super().__init__(rows, cols, parent)
-
-    def keyPressEvent(self, event):
-        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
-            current = self.currentIndex()
-            row, col = current.row(), current.column()
-
-            # Move to the next column
-            if col < self.columnCount() - 1:
-                next_col = col + 1
-                while next_col < self.columnCount() and self.isColumnHidden(next_col):
-                    next_col += 1  # Skip hidden columns if any
-                if next_col < self.columnCount():
-                    self.setCurrentCell(row, next_col)
-                else:
-                    self.setCurrentCell(row + 1, 0)
-            else:
-                # Move to the first column of the next row
-                next_row = row + 1
-                if next_row < self.rowCount():
-                    self.setCurrentCell(next_row, 0)
-        else:
-            # Default handler for other keys
-            super().keyPressEvent(event)
-
-       
-class CreateInvoice(QWidget):
+class CreateChallan(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Create Invoice")
+        self.setWindowTitle("Create Challan")
         self.resize(1200, 800)
-        self.items_table = CustomTableWidget(11, 7)
-        create_tables()
         
-
+        
         # Create a main scroll area for the entire window
         main_scroll = QScrollArea()
         main_scroll.setWidgetResizable(True)
@@ -124,11 +94,17 @@ class CreateInvoice(QWidget):
                 padding: 10px;
                 border-radius: 5px; 
             }
+            #noteTextEdit {
+                background-color: #F8FAFC;
+                border: 1px solid #ffcccc;
+                border-radius: 3px;
+                padding: 5px;
+            }
         """)
         
         # Title
         title_layout = QHBoxLayout()
-        title_label = QLabel("CREATE INVOICE")
+        title_label = QLabel("CREATE CHALLAN")
         title_label.setObjectName("titleLabel")
         title_layout.addWidget(title_label)
         title_layout.addStretch()
@@ -139,77 +115,54 @@ class CreateInvoice(QWidget):
         customer_frame.setFrameShape(QFrame.StyledPanel)
         customer_layout = QGridLayout(customer_frame)
         
-        # Left side
+        # Left side - Customer details
         customer_layout.addWidget(QLabel("M/S :"), 0, 0)
         self.customer_name = QLineEdit()
+        self.customer_name.setPlaceholderText("Enter the Customer Name")
         customer_layout.addWidget(self.customer_name, 0, 1)
         
         customer_layout.addWidget(QLabel("Address :"), 1, 0)
         self.customer_address = QLineEdit()
+        self.customer_address.setPlaceholderText("Enter the Customer Address")
         customer_layout.addWidget(self.customer_address, 1, 1)
         
         customer_layout.addWidget(QLabel("GSTIN :"), 2, 0)
         self.customer_gstin = QLineEdit()
+        self.customer_gstin.setPlaceholderText("Customer GSTIN/ URP")
         customer_layout.addWidget(self.customer_gstin, 2, 1)
         
         customer_layout.addWidget(QLabel("State :"), 3, 0)
         self.customer_state = QLineEdit()
+        self.customer_state.setPlaceholderText("Customer State")
         customer_layout.addWidget(self.customer_state, 3, 1)
         
         customer_layout.addWidget(QLabel("Code :"), 3, 2)
         self.state_code = QLineEdit()
+        self.state_code.setPlaceholderText("Eg 18 for Assam")
         customer_layout.addWidget(self.state_code, 3, 3)
         
-        # Right side
-        customer_layout.addWidget(QLabel("Invoice No :"), 0, 2)
-        self.invoice_no = QLineEdit()
-        customer_layout.addWidget(self.invoice_no, 0, 3)
+        # Right side - Challan details
+        customer_layout.addWidget(QLabel("Challan No :"), 0, 2)
+        self.challan_no = QLineEdit()
+        customer_layout.addWidget(self.challan_no, 0, 3)
         
         customer_layout.addWidget(QLabel("Date :"), 1, 2)
-        self.invoice_date = QLineEdit()
-        customer_layout.addWidget(self.invoice_date, 1, 3)
+        self.challan_date = QLineEdit()
+        customer_layout.addWidget(self.challan_date, 1, 3)
         
-        # Challan section
-        customer_layout.addWidget(QLabel("Challan No :"), 2, 2)
-        challan_layout = QHBoxLayout()
-        self.challan_combo = QComboBox()
-        self.challan_combo.addItems(["NO", "YES"])
-        self.challan_combo.currentTextChanged.connect(self.toggle_challan_field)
-        challan_layout.addWidget(self.challan_combo)
+        # Note section
+        customer_layout.addWidget(QLabel("Note :"), 2, 2)
+        note_layout = QHBoxLayout()
+        self.note_combo = QComboBox()
+        self.note_combo.addItems(["YES", "NO"])
+        self.note_combo.currentTextChanged.connect(self.toggle_note_field)
+        note_layout.addWidget(self.note_combo)
         
-        self.challan_no = QLineEdit()
-        self.challan_no.setPlaceholderText("Challan no. if yes")
-        self.challan_no.setEnabled(False)
-        challan_layout.addWidget(self.challan_no)
-        customer_layout.addLayout(challan_layout, 2, 3)
-        
-        # Transporter section
-        customer_layout.addWidget(QLabel("Transporter No :"), 4, 2)
-        transporter_layout = QHBoxLayout()
-        self.transporter_combo = QComboBox()
-        self.transporter_combo.addItems(["NO", "YES"])
-        self.transporter_combo.currentTextChanged.connect(self.toggle_transporter_field)
-        transporter_layout.addWidget(self.transporter_combo)
-        
-        self.transporter_no = QLineEdit()
-        self.transporter_no.setPlaceholderText("Transporter no. if yes")
-        self.transporter_no.setEnabled(False)
-        transporter_layout.addWidget(self.transporter_no)
-        customer_layout.addLayout(transporter_layout, 4, 3)
-        
-        # Consignment section
-        customer_layout.addWidget(QLabel("Consignment No :"), 5, 2)
-        consign_layout = QHBoxLayout()
-        self.consignment_combo = QComboBox()
-        self.consignment_combo.addItems(["NO", "YES"])
-        self.consignment_combo.currentTextChanged.connect(self.toggle_consignment_field)
-        consign_layout.addWidget(self.consignment_combo)
-        
-        self.consignment_no = QLineEdit()
-        self.consignment_no.setPlaceholderText("Consignment no. if yes")
-        self.consignment_no.setEnabled(False)
-        consign_layout.addWidget(self.consignment_no)
-        customer_layout.addLayout(consign_layout, 5, 3)
+        self.note_text = QTextEdit()
+        self.note_text.setObjectName("noteTextEdit")
+        self.note_text.setMaximumHeight(70)
+        note_layout.addWidget(self.note_text)
+        customer_layout.addLayout(note_layout, 2, 3)
         
         main_layout.addWidget(customer_frame)
         
@@ -226,7 +179,7 @@ class CreateInvoice(QWidget):
         self.terms_scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.terms_scroll.setMinimumHeight(300)  # Make it larger
         
-       # Table Widget for items
+        # Table Widget for items
         self.current_rows = 11
         self.items_table = QTableWidget(self.current_rows, 7)
         self.items_table.setHorizontalHeaderLabels(["Description", "HSN/SAC", "Quantity", "Type", "Rate", "GST %", "Total"])
@@ -296,7 +249,7 @@ class CreateInvoice(QWidget):
         
         self.save_button = QPushButton("Save")
         self.save_button.setObjectName("saveButton")
-        self.save_button.clicked.connect(self.save_invoice_to_db)
+        self.save_button.clicked.connect(self.save_challan_to_db)
         button_layout.addWidget(self.save_button)
         
         save_print_button = QPushButton("Save & Print")
@@ -317,20 +270,10 @@ class CreateInvoice(QWidget):
         # Maximize window when opened
         self.showMaximized()
     
-    def toggle_challan_field(self, text):
-        self.challan_no.setEnabled(text == "YES")
+    def toggle_note_field(self, text):
+        self.note_text.setEnabled(text == "YES")
         if text == "NO":
-            self.challan_no.clear()
-    
-    def toggle_transporter_field(self, text):
-        self.transporter_no.setEnabled(text == "YES")
-        if text == "NO":
-            self.transporter_no.clear()
-    
-    def toggle_consignment_field(self, text):
-        self.consignment_no.setEnabled(text == "YES")
-        if text == "NO":
-            self.consignment_no.clear()
+            self.note_text.clear()
     
     def add_row(self):
         # Add a new row to the table
@@ -351,18 +294,12 @@ class CreateInvoice(QWidget):
         self.customer_gstin.clear()
         self.customer_state.clear()
         self.state_code.clear()
-        self.invoice_no.clear()
-        self.invoice_date.clear()
-        
-        # Reset combo boxes
-        self.challan_combo.setCurrentIndex(0)
-        self.transporter_combo.setCurrentIndex(0)
-        self.consignment_combo.setCurrentIndex(0)
-        
-        # Clear dependent fields
         self.challan_no.clear()
-        self.transporter_no.clear()
-        self.consignment_no.clear()
+        self.challan_date.clear()
+        
+        # Reset note combo and clear note text
+        self.note_combo.setCurrentIndex(0)
+        self.note_text.clear()
         
         # Clear table
         for row in range(self.items_table.rowCount()):
@@ -374,97 +311,13 @@ class CreateInvoice(QWidget):
         for gst_type, fields in self.gst_fields.items():
             for field in fields:
                 field.clear()
-
-    def get_cell_text(self, row, col):
-        """Safely get text from a table cell"""
-        item = self.items_table.item(row, col)
-        return item.text() if item else ""
-
-    def save_invoice_to_db(self):
-        try:
-            # Validate required fields
-            if not self.invoice_no.text():
-                print("Error: Invoice number is required")
-                return
-            
-            # Try to parse grand total as float if provided
-            grand_total = 0.0
-            if self.grand_total.text():
-                try:
-                    grand_total = float(self.grand_total.text())
-                except ValueError:
-                    print("Error: Grand total must be a valid number")
-                    return
-                
-            invoice_data = {
-                "customer_name": self.customer_name.text(),
-                "customer_address": self.customer_address.text(),
-                "gstin": self.customer_gstin.text(),
-                "state": self.customer_state.text(),
-                "state_code": self.state_code.text(),
-                "invoice_no": self.invoice_no.text(),
-                "date": self.invoice_date.text(),
-                "challan": self.challan_no.text() if self.challan_combo.currentText() == "YES" else "",
-                "transporter": self.transporter_no.text() if self.transporter_combo.currentText() == "YES" else "",
-                "consignment": self.consignment_no.text() if self.consignment_combo.currentText() == "YES" else "",
-                "grand_total": grand_total
-            }
-
-            items = []
-            for row in range(self.items_table.rowCount()):
-                description = self.get_cell_text(row, 0)
-                if not description:  # Skip empty rows
-                    continue
-                    
-                # Try to parse numeric values
-                try:
-                    quantity = int(self.get_cell_text(row, 2)) if self.get_cell_text(row, 2) else 0
-                except ValueError:
-                    print(f"Error in row {row+1}: Quantity must be a number")
-                    return
-                    
-                try:
-                    rate = float(self.get_cell_text(row, 4)) if self.get_cell_text(row, 4) else 0.0
-                except ValueError:
-                    print(f"Error in row {row+1}: Rate must be a number")
-                    return
-                    
-                try:
-                    gst = float(self.get_cell_text(row, 5)) if self.get_cell_text(row, 5) else 0.0
-                except ValueError:
-                    print(f"Error in row {row+1}: GST must be a number")
-                    return
-                    
-                try:
-                    total = float(self.get_cell_text(row, 6)) if self.get_cell_text(row, 6) else 0.0
-                except ValueError:
-                    print(f"Error in row {row+1}: Total must be a number")
-                    return
-                
-                item_data = {
-                    "description": description,
-                    "hsn": self.get_cell_text(row, 1),
-                    "quantity": quantity,
-                    "type": self.get_cell_text(row, 3),
-                    "rate": rate,
-                    "gst": gst,
-                    "total": total,
-                }
-                items.append(item_data)
-
-            if not items:
-                print("Error: At least one item is required")
-                return
-                
-            # Save to database
-            save_invoice(invoice_data, items)
-            print("Invoice saved successfully!")
-            
-        except Exception as e:
-            print(f"Error saving invoice: {str(e)}")
-            
+    
+    def save_challan_to_db(self):
+        # Implement database saving logic here
+        QMessageBox.information(self, "Save", "Challan saved successfully")
+    
     def save_and_print(self):
-        # First save the invoice
-        self.save_invoice_to_db()
-        # Then implement print functionality here
-        print("Printing functionality to be implemented")
+        # Save the challan to database
+        self.save_challan_to_db()
+        # Implement print logic here
+        QMessageBox.information(self, "Print", "Challan saved and sent to printer")

@@ -1,11 +1,13 @@
-from PySide6.QtCore import Qt, QSize
+import os
+from PySide6.QtCore import Qt, QRectF
 from PySide6.QtWidgets import (
     QDialog, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QTextEdit, QPushButton, QFileDialog,
     QScrollArea, QFrame, QGroupBox, QSizePolicy
 )
-from PySide6.QtGui import QPixmap, QIcon
-import os
+from PySide6.QtGui import QPixmap, QPainter, QPainterPath
+from ..models.db_manager import save_company_info,load_company_info
+
 
 class AdminPage(QDialog):
     def __init__(self, parent=None):
@@ -34,12 +36,34 @@ class AdminPage(QDialog):
                 background-color: #666666;
                 color: white;
             }
+            #clearButton:hover{
+                background-color:#635e5e; color:white
+            }
+            #clearButton:pressed{
+                background-color:#2e2e2e; color:white          
+            }
             #cancelButton {
                 background-color: #ff4444;
                 color: white;
             }
+            #cancelButton:hover {
+                background-color: #f78888;
+                color: white;
+            }
+            #cancelButton:pressed {
+                background-color: #c71c1c;
+                color: white;
+            }
             #saveButton {
                 background-color: #555599;
+                color: white;
+            }
+            #saveButton:hover {
+                background-color: #7070b8;
+                color: white;
+            }
+             #saveButton:pressed {
+                background-color: #474780;
                 color: white;
             }""")
         
@@ -164,7 +188,7 @@ class AdminPage(QDialog):
         
         self.clear_btn = QPushButton("Clear")
         self.clear_btn.clicked.connect(self.clear_form)
-        self.clear_btn.setObjectName("clearButton")
+        self.clear_btn.setObjectName("clearButton")    #setObjectName is used to add the stylesheet
         
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.clicked.connect(self.reject)
@@ -183,32 +207,68 @@ class AdminPage(QDialog):
         
         # Store the logo path
         self.logo_path = None
+
+        #Load saved data from the database
+        self.load_data()
+
+        #loads circular logo
+        self.load_logo()
         
     def add_logo(self):
         file_dialog = QFileDialog()
         file_path, _ = file_dialog.getOpenFileName(
-            self, "Select Logo", "", "Image Files (*.png *.jpg *.jpeg)"
+        self, "Select Logo", "", "Image Files (*.png *.jpg *.jpeg)"
         )
-        
+
         if file_path:
             self.logo_path = file_path
-            pixmap = QPixmap(file_path)
-            
-            # Create circular mask for the logo
-            scaled_pixmap = pixmap.scaled(
-                180, 180, 
-                Qt.KeepAspectRatio, 
-                Qt.SmoothTransformation
-            )
-            
-            self.logo_frame.setPixmap(scaled_pixmap)
-            self.logo_frame.setStyleSheet("background-color: transparent; border-radius: 90px;")
+            original_pixmap = QPixmap(file_path)
+
+            # Scale image to desired size (e.g., 180x180)
+            size = 180
+            scaled_pixmap = original_pixmap.scaled(size, size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+
+            # Create circular mask
+            mask = QPixmap(size, size)
+            mask.fill(Qt.transparent)
+
+            painter = QPainter(mask)
+            painter.setRenderHint(QPainter.Antialiasing)
+            path = QPainterPath()
+            path.addEllipse(0, 0, size, size)
+            painter.setClipPath(path)
+            painter.drawPixmap(0, 0, scaled_pixmap)
+            painter.end()
+
+            self.logo_frame.setPixmap(mask)
+            self.logo_frame.setStyleSheet("background-color: transparent;")
     
     def remove_logo(self):
         self.logo_path = None
         self.logo_frame.clear()
         self.logo_frame.setStyleSheet("background-color: #f8f8f8; border-radius: 90px;")
     
+    def load_logo(self):
+        if hasattr(self, 'logo_path') and os.path.exists(self.logo_path):
+            original_pixmap = QPixmap(self.logo_path)
+            size = 180
+            scaled_pixmap = original_pixmap.scaled(size, size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+
+            # Create circular mask again
+            mask = QPixmap(size, size)
+            mask.fill(Qt.transparent)
+
+            painter = QPainter(mask)
+            painter.setRenderHint(QPainter.Antialiasing)
+            path = QPainterPath()
+            path.addEllipse(0, 0, size, size)
+            painter.setClipPath(path)
+            painter.drawPixmap(0, 0, scaled_pixmap)
+            painter.end()
+
+            self.logo_frame.setPixmap(mask)
+            self.logo_frame.setStyleSheet("background-color: transparent;")
+   
     def clear_form(self):
         # Clear all form fields
         self.company_name.clear()
@@ -223,25 +283,44 @@ class AdminPage(QDialog):
         self.remove_logo()
     
     def save_data(self):
-        # Implement saving functionality here
-        # You might want to save to a config file or database
-        # For now, we'll just print the values
+        # Gather data from form fields
         company_data = {
-            'name': self.company_name.text(),
-            'gstin': self.gstin.text(),
-            'contact': self.contact.text(),
-            'address': self.address.toPlainText(),
+            'name': self.company_name.text().strip(),
+            'gstin': self.gstin.text().strip(),
+            'contact': self.contact.text().strip(),
+            'address': self.address.toPlainText().strip(),
             'logo_path': self.logo_path,
-            'bank_name': self.bank_name.text(),
-            'account_number': self.account_number.text(),
-            'bank_ifsc': self.bank_ifsc.text(),
-            'bank_branch': self.bank_branch.text()
+            'bank_name': self.bank_name.text().strip(),
+            'account_number': self.account_number.text().strip(),
+            'bank_ifsc': self.bank_ifsc.text().strip(),
+            'bank_branch': self.bank_branch.text().strip()
         }
-        
-        print("Saving company data:", company_data)
-        # Here you would add your actual save logic
-        
-        # Close the dialog
-        self.accept()
 
+        # Save using db_manager
+        success = save_company_info(company_data)
+
+        if success:
+            print("Company data saved successfully.")
+            self.accept()
+        else:
+            print("Failed to save company data.")
+
+    def load_data(self):
+        data = load_company_info()
+        if data:
+            self.company_name.setText(data.get('name', ''))
+            self.gstin.setText(data.get('gstin', ''))
+            self.contact.setText(data.get('contact', ''))
+            self.address.setPlainText(data.get('address', ''))
+            self.bank_name.setText(data.get('bank_name', ''))
+            self.account_number.setText(data.get('account_number', ''))
+            self.bank_ifsc.setText(data.get('bank_ifsc', ''))
+            self.bank_branch.setText(data.get('bank_branch', ''))
         
+            self.logo_path = data.get('logo_path')
+            if self.logo_path and os.path.exists(self.logo_path):
+                pixmap = QPixmap(self.logo_path).scaled(180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self.logo_frame.setPixmap(pixmap)
+                self.logo_frame.setStyleSheet("background-color: transparent; border-radius: 90px;")
+            else:
+                self.remove_logo()

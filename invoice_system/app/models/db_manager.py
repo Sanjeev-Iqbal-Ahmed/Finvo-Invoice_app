@@ -55,6 +55,22 @@ def create_tables():
         FOREIGN KEY(invoice_id) REFERENCES invoices(id)
     )
     """)
+
+    #Create Admin or Company_info table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS company_info (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        name TEXT,
+        gstin TEXT,
+        contact TEXT,
+        address TEXT,
+        logo_path TEXT,
+        bank_name TEXT,
+        account_number TEXT,
+        bank_ifsc TEXT,
+        bank_branch TEXT
+    )
+    """)
     
     conn.commit()
     conn.close()
@@ -206,3 +222,91 @@ def get_invoice(invoice_id):
         if conn:
             conn.close()
         return None, None
+    
+def save_company_info(data):
+    """
+    Save or update the company information in a single-row table.
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+
+        # Create table if not exists
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS company_info (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            name TEXT,
+            gstin TEXT,
+            contact TEXT,
+            address TEXT,
+            logo_path TEXT,
+            bank_name TEXT,
+            account_number TEXT,
+            bank_ifsc TEXT,
+            bank_branch TEXT
+        )
+        """)
+
+        # Check if row exists
+        cursor.execute("SELECT id FROM company_info WHERE id = 1")
+        exists = cursor.fetchone()
+
+        if exists:
+            # Update existing
+            cursor.execute("""
+                UPDATE company_info SET
+                    name = ?, gstin = ?, contact = ?, address = ?, logo_path = ?,
+                    bank_name = ?, account_number = ?, bank_ifsc = ?, bank_branch = ?
+                WHERE id = 1
+            """, (
+                data['name'], data['gstin'], data['contact'], data['address'],
+                data['logo_path'], data['bank_name'], data['account_number'],
+                data['bank_ifsc'], data['bank_branch']
+            ))
+        else:
+            # Insert new
+            cursor.execute("""
+                INSERT INTO company_info (
+                    id, name, gstin, contact, address, logo_path,
+                    bank_name, account_number, bank_ifsc, bank_branch
+                ) VALUES (
+                    1, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+            """, (
+                data['name'], data['gstin'], data['contact'], data['address'],
+                data['logo_path'], data['bank_name'], data['account_number'],
+                data['bank_ifsc'], data['bank_branch']
+            ))
+
+        conn.commit()
+        conn.close()
+        return True
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return False
+
+
+def load_company_info():
+    """
+    Load the company information from the database.
+    Returns a dictionary or None if not found.
+    """
+    try:
+        conn = connect()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM company_info WHERE id = 1")
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return dict(row)
+        return None
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return None
+
+
+
