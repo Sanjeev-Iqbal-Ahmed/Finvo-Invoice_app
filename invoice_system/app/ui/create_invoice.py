@@ -1,10 +1,13 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt,QDate
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
-    QTableWidget, QTableWidgetItem, QPushButton, QScrollArea,
-    QFrame, QGridLayout, QHeaderView, QSizePolicy, QComboBox
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,QButtonGroup,QRadioButton,
+    QTableWidget, QTableWidgetItem, QPushButton, QScrollArea,QDialog,
+    QFrame, QGridLayout, QHeaderView, QSizePolicy, QComboBox,QMessageBox,QDialogButtonBox
 )
+import datetime
+import time 
 from PySide6.QtGui import QFont, QKeyEvent
+from .invoice_preview import InvoicePreviewWindow
 from ..models.db_manager import create_tables, save_invoice
 
 class CustomTableWidget(QTableWidget):
@@ -34,16 +37,21 @@ class CustomTableWidget(QTableWidget):
             # Default handler for other keys
             super().keyPressEvent(event)
 
-       
 class CreateInvoice(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Create Invoice")
         self.resize(1200, 800)
-        self.items_table = CustomTableWidget(11, 7)
+        
+        self.current_invoice_id = None
+        
+        # Need to add a QLabel or similar widget to display the grand total
+        self.grand_total = QLineEdit()
+        self.grand_total.setReadOnly(True)
+        self.grand_total.setText("0.00")
+        
         create_tables()
         
-
         # Create a main scroll area for the entire window
         main_scroll = QScrollArea()
         main_scroll.setWidgetResizable(True)
@@ -81,6 +89,14 @@ class CreateInvoice(QWidget):
             QPushButton {
                 padding: 8px 15px;
                 border-radius: 4px;
+                font-weight: bold;
+            }
+            QMessageBox{
+                background-color:white;
+            }
+            QLabel {
+                background: transparent;
+                color: black;
                 font-weight: bold;
             }
             #addButton {
@@ -163,10 +179,14 @@ class CreateInvoice(QWidget):
         # Right side
         customer_layout.addWidget(QLabel("Invoice No :"), 0, 2)
         self.invoice_no = QLineEdit()
+        self.invoice_no.setText(self.generate_invoice_no())
+        self.invoice_no.setReadOnly(True)   # Make it non-editable
         customer_layout.addWidget(self.invoice_no, 0, 3)
         
         customer_layout.addWidget(QLabel("Date :"), 1, 2)
         self.invoice_date = QLineEdit()
+        self.invoice_date.setText(QDate.currentDate().toString("dd-MM-yyyy"))
+        self.invoice_date.setReadOnly(True)
         customer_layout.addWidget(self.invoice_date, 1, 3)
         
         # Challan section
@@ -213,7 +233,8 @@ class CreateInvoice(QWidget):
         
         main_layout.addWidget(customer_frame)
         
-        # Terms of Sale section - made larger with scroll
+        
+        # (Items Table) section - made larger with scroll
         terms_title = QLabel("TERMS OF SALE")
         terms_title.setObjectName("termsTitle")
         terms_title.setAlignment(Qt.AlignCenter)
@@ -227,8 +248,9 @@ class CreateInvoice(QWidget):
         self.terms_scroll.setMinimumHeight(300)  # Make it larger
         
        # Table Widget for items
-        self.current_rows = 11
-        self.items_table = QTableWidget(self.current_rows, 7)
+        self.current_rows = 8
+        self.items_table = CustomTableWidget(self.current_rows, 7)
+        self.items_table.cellChanged.connect(self.calculate_totals)
         self.items_table.setHorizontalHeaderLabels(["Description", "HSN/SAC", "Quantity", "Type", "Rate", "GST %", "Total"])
 
         # Set column stretch
@@ -243,23 +265,33 @@ class CreateInvoice(QWidget):
         self.terms_scroll.setWidget(self.items_table)
         main_layout.addWidget(self.terms_scroll)
         
-        # Add button
-        add_button_layout = QHBoxLayout()
+        # Add button + Grand Total in the same row
+        add_and_total_layout = QHBoxLayout()
+
+        # Add Button
         add_button = QPushButton("Add +")
         add_button.setObjectName("addButton")
         add_button.clicked.connect(self.add_row)
-        add_button_layout.addWidget(add_button)
-        add_button_layout.addStretch()
-        main_layout.addLayout(add_button_layout)
-        
-        # GST rates section
+        add_and_total_layout.addWidget(add_button)
+
+        # Spacer between button and total
+        add_and_total_layout.addStretch()
+
+        # Grand Total Label
+        grand_total_label = QLabel("GRAND TOTAL:")
+        grand_total_label.setStyleSheet("font-weight: bold;")
+        add_and_total_layout.addWidget(grand_total_label)
+
+        self.grand_total = QLineEdit(" ")
+        self.grand_total.setStyleSheet("font-weight: bold;")
+        self.grand_total.setFixedWidth(100)
+        add_and_total_layout.addWidget(self.grand_total)
+
+        main_layout.addLayout(add_and_total_layout)
+
+         # GST rates section
         gst_frame = QFrame()
         gst_layout = QGridLayout(gst_frame)
-        
-        # Left side - Grand Total
-        gst_layout.addWidget(QLabel("GRAND TOTAL"), 0, 0)
-        self.grand_total = QLineEdit()
-        gst_layout.addWidget(self.grand_total, 0, 1)
         
         # Right side - GST rates
         gst_rates = ["1.25%", "1.5%", "2.5%", "3%", "6%", "9%", "14%"]
@@ -294,15 +326,15 @@ class CreateInvoice(QWidget):
         cancel_button.clicked.connect(self.close)
         button_layout.addWidget(cancel_button)
         
-        self.save_button = QPushButton("Save")
+        self.save_button = QPushButton("Save && Print")
         self.save_button.setObjectName("saveButton")
         self.save_button.clicked.connect(self.save_invoice_to_db)
         button_layout.addWidget(self.save_button)
         
-        save_print_button = QPushButton("Save & Print")
+        """save_print_button = QPushButton("Save & Print")
         save_print_button.setObjectName("saveAndPrintButton")
         save_print_button.clicked.connect(self.save_and_print)
-        button_layout.addWidget(save_print_button)
+        button_layout.addWidget(save_print_button)"""
         
         main_layout.addLayout(button_layout)
         
@@ -316,6 +348,83 @@ class CreateInvoice(QWidget):
         
         # Maximize window when opened
         self.showMaximized()
+
+    def generate_invoice_no(self):
+        date_str = datetime.datetime.now().strftime("%Y%m%d")
+        unique_id = str(int(time.time() * 1000))[-5:]  # Last 5 digits of milliseconds
+        return f"INV-{date_str}-{unique_id}"
+
+    def calculate_totals(self): 
+        self.items_table.blockSignals(True)
+        grand_total = 0.0
+
+        # Clear GST fields first
+        for gst_type in self.gst_fields:
+            for field in self.gst_fields[gst_type]:
+                field.setText("")
+
+        # Create GST accumulators
+        gst_accumulator = {
+            "SGST": [0.0] * 7,
+            "CGST": [0.0] * 7,
+            "IGST": [0.0] * 7,
+            "Taxation": [0.0] * 7,
+        }
+
+        # Rate reference
+        gst_rates = ["1.25%", "1.5%", "2.5%", "3%", "6%", "9%", "14%"]
+        gst_rate_values = [float(rate.strip('%')) for rate in gst_rates]
+
+        for row in range(self.items_table.rowCount()):
+            quantity_item = self.items_table.item(row, 2)
+            rate_item = self.items_table.item(row, 4)
+            gst_item = self.items_table.item(row, 5)
+
+            if quantity_item and rate_item and quantity_item.text().strip() and rate_item.text().strip():
+                try:
+                    quantity = float(quantity_item.text())
+                    rate = float(rate_item.text())
+                    total = quantity * rate
+
+                    total_item = QTableWidgetItem(f"{total:.2f}")
+                    total_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled|Qt.ItemIsEditable)
+                    self.items_table.setItem(row, 6, total_item)
+
+                    grand_total += total
+
+                    # GST calculation
+                    if gst_item and gst_item.text().strip():
+                        gst_value = float(gst_item.text())
+                        if gst_value in gst_rate_values:
+                            index = gst_rate_values.index(gst_value)
+
+                            sgst = (gst_value / 2) * total / 100
+                            cgst = (gst_value / 2) * total / 100
+                            igst = 0.0  # Assuming IGST is 0
+                            tax_total = sgst + cgst + igst
+
+                            gst_accumulator["SGST"][index] += sgst
+                            gst_accumulator["CGST"][index] += cgst
+                            gst_accumulator["IGST"][index] += igst
+                            gst_accumulator["Taxation"][index] += tax_total
+
+                except ValueError:
+                    pass
+            else:
+                # Clear total column if inputs are empty
+                self.items_table.setItem(row, 6, QTableWidgetItem(""))
+
+        # Update GST fields
+        for gst_type in self.gst_fields:
+            for i in range(7):
+                amount = gst_accumulator[gst_type][i]
+                if gst_type == "IGST":
+                    self.gst_fields[gst_type][i].setText("0.00")  # Always show 0.00
+                else:
+                    self.gst_fields[gst_type][i].setText(f"{amount:.2f}" if amount > 0 else "")
+        self.grand_total.setText(f"{grand_total:.2f}")
+        self.items_table.blockSignals(False)
+
     
     def toggle_challan_field(self, text):
         self.challan_no.setEnabled(text == "YES")
@@ -381,21 +490,31 @@ class CreateInvoice(QWidget):
         return item.text() if item else ""
 
     def save_invoice_to_db(self):
+        """Open payment status dialog before saving the invoice"""
+        payment_status = self.get_payment_status()
+        
+        if not payment_status:
+            # User canceled the payment status dialog
+            return
+        
+        print(f"Selected payment status: {payment_status}")  # Debug print
+        
         try:
             # Validate required fields
             if not self.invoice_no.text():
-                print("Error: Invoice number is required")
+                QMessageBox.warning(self, "Missing Field", "Invoice number is required.")
                 return
-            
+    
             # Try to parse grand total as float if provided
             grand_total = 0.0
             if self.grand_total.text():
                 try:
                     grand_total = float(self.grand_total.text())
                 except ValueError:
-                    print("Error: Grand total must be a valid number")
+                    QMessageBox.warning(self, "Invalid Input", "Grand total must be a valid number.")
                     return
-                
+
+            # Create invoice data dictionary with payment_status included
             invoice_data = {
                 "customer_name": self.customer_name.text(),
                 "customer_address": self.customer_address.text(),
@@ -407,40 +526,40 @@ class CreateInvoice(QWidget):
                 "challan": self.challan_no.text() if self.challan_combo.currentText() == "YES" else "",
                 "transporter": self.transporter_no.text() if self.transporter_combo.currentText() == "YES" else "",
                 "consignment": self.consignment_no.text() if self.consignment_combo.currentText() == "YES" else "",
-                "grand_total": grand_total
+                "grand_total": grand_total,
+                "payment_status": payment_status  # This is the key line!
             }
 
             items = []
             for row in range(self.items_table.rowCount()):
                 description = self.get_cell_text(row, 0)
-                if not description:  # Skip empty rows
+                if not description:
                     continue
-                    
-                # Try to parse numeric values
+
                 try:
                     quantity = int(self.get_cell_text(row, 2)) if self.get_cell_text(row, 2) else 0
                 except ValueError:
-                    print(f"Error in row {row+1}: Quantity must be a number")
+                    QMessageBox.warning(self, "Invalid Input", f"Row {row + 1}: Quantity must be a number.")
                     return
-                    
+
                 try:
                     rate = float(self.get_cell_text(row, 4)) if self.get_cell_text(row, 4) else 0.0
                 except ValueError:
-                    print(f"Error in row {row+1}: Rate must be a number")
+                    QMessageBox.warning(self, "Invalid Input", f"Row {row + 1}: Rate must be a number.")
                     return
-                    
+
                 try:
                     gst = float(self.get_cell_text(row, 5)) if self.get_cell_text(row, 5) else 0.0
                 except ValueError:
-                    print(f"Error in row {row+1}: GST must be a number")
+                    QMessageBox.warning(self, "Invalid Input", f"Row {row + 1}: GST must be a number.")
                     return
-                    
+
                 try:
                     total = float(self.get_cell_text(row, 6)) if self.get_cell_text(row, 6) else 0.0
                 except ValueError:
-                    print(f"Error in row {row+1}: Total must be a number")
+                    QMessageBox.warning(self, "Invalid Input", f"Row {row + 1}: Total must be a number.")
                     return
-                
+
                 item_data = {
                     "description": description,
                     "hsn": self.get_cell_text(row, 1),
@@ -453,18 +572,87 @@ class CreateInvoice(QWidget):
                 items.append(item_data)
 
             if not items:
-                print("Error: At least one item is required")
+                QMessageBox.warning(self, "Empty Invoice", "At least one item is required.")
                 return
-                
-            # Save to database
-            save_invoice(invoice_data, items)
-            print("Invoice saved successfully!")
-            
+
+            # Save to database and get the invoice_id
+            invoice_id = save_invoice(invoice_data, items)
+        
+            if invoice_id:
+                self.current_invoice_id = invoice_id
+                QMessageBox.information(self, "Success", f"Invoice saved successfully with payment status: {payment_status}")
+                self.show_invoice_preview()
+
+                # If you need to call save_and_print_invoice, do it here AFTER saving to the database
+                if hasattr(self, 'save_and_print_invoice'):
+                    self.save_and_print_invoice(payment_status)
+            else:
+                QMessageBox.critical(self, "Error", "Failed to save invoice to database.")
+
         except Exception as e:
-            print(f"Error saving invoice: {str(e)}")
-            
-    def save_and_print(self):
+            QMessageBox.critical(self, "Error", f"An error occurred while saving the invoice:\n{str(e)}")
+
+    def get_payment_status(self):
+        """Show dialog asking for payment status"""
+        # Create a custom dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Payment Status")
+        dialog.setFixedWidth(300)
+        dialog.setFixedHeight(150)
+        
+        # Create dialog layout
+        layout = QVBoxLayout()
+        
+        # Add question label
+        label = QLabel("Do you want the bill to be listed as:")
+        layout.addWidget(label)
+        
+        # Create button group for radio buttons
+        button_group = QButtonGroup(dialog)
+        
+        # Create radio buttons
+        paid_radio = QRadioButton("Paid")
+        pending_radio = QRadioButton("Pending")
+        pending_radio.setChecked(True)  # Default to pending
+        
+        # Add radio buttons to button group
+        button_group.addButton(paid_radio, 1)
+        button_group.addButton(pending_radio, 2)
+        
+        # Add radio buttons to layout
+        layout.addWidget(paid_radio)
+        layout.addWidget(pending_radio)
+        
+        # Add spacer
+        layout.addSpacing(10)
+        
+        # Create button box for OK/Cancel
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        # Set dialog layout
+        dialog.setLayout(layout)
+        
+        # Execute dialog and get result
+        result = dialog.exec_()
+        
+        if result == QDialog.Accepted:
+            # Return "Paid" or "Pending" based on selection
+            return "Paid" if paid_radio.isChecked() else "Pending"
+        else:
+            # User canceled
+            return None
+
+    def show_invoice_preview(self):
+        """Open the invoice preview window"""
+        if self.current_invoice_id:
+            preview_window = InvoicePreviewWindow(self.current_invoice_id, self)
+            preview_window.show()       
+    
+    """def save_and_print(self):
         # First save the invoice
         self.save_invoice_to_db()
         # Then implement print functionality here
-        print("Printing functionality to be implemented")
+        print("Printing functionality to be implemented")"""

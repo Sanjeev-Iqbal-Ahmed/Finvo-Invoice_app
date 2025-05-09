@@ -39,6 +39,12 @@ def create_tables():
         grand_total REAL
     )
     """)
+     # Check if 'payment_status' column exists, add if not
+    cursor.execute("PRAGMA table_info(invoices)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "payment_status" not in columns:
+        cursor.execute("ALTER TABLE invoices ADD COLUMN payment_status TEXT DEFAULT 'Pending'")
+    
     
     # Create invoice_items table
     cursor.execute("""
@@ -71,7 +77,7 @@ def create_tables():
         bank_branch TEXT
     )
     """)
-    
+
     conn.commit()
     conn.close()
 
@@ -94,11 +100,15 @@ def save_invoice(invoice_data, items):
         cursor.execute("SELECT id FROM invoices WHERE invoice_no = ?", (invoice_data['invoice_no'],))
         existing = cursor.fetchone()
         
+        # Make sure payment_status is included, default to 'Pending' if not provided
+        payment_status = invoice_data.get('payment_status', 'Pending')
+        print(f"Processing invoice with payment status: {payment_status}")
+        
         if existing:
             print(f"Warning: Invoice number {invoice_data['invoice_no']} already exists. Updating existing invoice.")
             invoice_id = existing[0]
             
-            # Update existing invoice
+            # Update existing invoice - now including payment_status
             cursor.execute("""
                 UPDATE invoices SET
                     customer_name = ?,
@@ -110,7 +120,8 @@ def save_invoice(invoice_data, items):
                     challan = ?,
                     transporter = ?,
                     consignment = ?,
-                    grand_total = ?
+                    grand_total = ?,
+                    payment_status = ?
                 WHERE id = ?
             """, (
                 invoice_data['customer_name'],
@@ -123,18 +134,20 @@ def save_invoice(invoice_data, items):
                 invoice_data['transporter'],
                 invoice_data['consignment'],
                 invoice_data['grand_total'],
+                payment_status,
                 invoice_id
             ))
             
             # Delete existing items for this invoice
             cursor.execute("DELETE FROM invoice_items WHERE invoice_id = ?", (invoice_id,))
         else:
-            # Insert new invoice
+            # Insert new invoice - now including payment_status
             cursor.execute("""
                 INSERT INTO invoices (
                     customer_name, customer_address, gstin, state, state_code,
-                    invoice_no, date, challan, transporter, consignment, grand_total
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    invoice_no, date, challan, transporter, consignment, grand_total,
+                    payment_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 invoice_data['customer_name'],
                 invoice_data['customer_address'],
@@ -146,7 +159,8 @@ def save_invoice(invoice_data, items):
                 invoice_data['challan'],
                 invoice_data['transporter'],
                 invoice_data['consignment'],
-                invoice_data['grand_total']
+                invoice_data['grand_total'],
+                payment_status
             ))
             
             invoice_id = cursor.lastrowid  # Get the auto-generated invoice ID
@@ -167,6 +181,11 @@ def save_invoice(invoice_data, items):
                 item['gst'],
                 item['total']
             ))
+        
+        # Verify payment status was saved correctly
+        cursor.execute("SELECT payment_status FROM invoices WHERE id = ?", (invoice_id,))
+        saved_status = cursor.fetchone()[0]
+        print(f"Verified: Invoice {invoice_id} saved with payment status: {saved_status}")
         
         conn.commit()
         conn.close()
@@ -309,4 +328,50 @@ def load_company_info():
         return None
 
 
+def get_invoice_summary():
+    """
+    Get summary data for the invoice dashboard.
+
+    Returns:
+        dict: Contains total invoices, paid bills, pending bills, and due amount.
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        # Total invoices
+        cursor.execute("SELECT COUNT(*) FROM invoices")
+        total_invoices = cursor.fetchone()[0]
+        
+        # Paid bills
+        cursor.execute("SELECT COUNT(*) FROM invoices WHERE payment_status = 'Paid'")
+        paid_bills = cursor.fetchone()[0]
+        
+        # Pending bills
+        cursor.execute("SELECT COUNT(*) FROM invoices WHERE payment_status = 'Pending'")
+        pending_bills = cursor.fetchone()[0]
+        
+        # Due amount (sum of grand_total for pending invoices)
+        cursor.execute("SELECT COALESCE(SUM(grand_total), 0) FROM invoices WHERE payment_status = 'Pending'")
+        due_amount = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return {
+            "total_invoices": total_invoices,
+            "paid_bills": paid_bills,
+            "pending_bills": pending_bills,
+            "due_amount": due_amount
+        }
+        
+    except sqlite3.Error as e:
+        print(f"Database error in get_invoice_summary: {e}")
+        if conn:
+            conn.close()
+        return {
+            "total_invoices": 0,
+            "paid_bills": 0,
+            "pending_bills": 0,
+            "due_amount": 0.0
+        }
 

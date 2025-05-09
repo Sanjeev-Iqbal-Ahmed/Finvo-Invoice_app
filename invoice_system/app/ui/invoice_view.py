@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QStackedWidget, 
     QGridLayout, QFrame, QSizePolicy
 )
+from ..models.db_manager import get_invoice_summary
 
 class InvoiceView(QWidget):
     def __init__(self):
@@ -24,9 +25,14 @@ class InvoiceView(QWidget):
         # Set Invoice page as default
         self.stacked_widget.setCurrentWidget(self.invoice_widget)
 
+        self.refresh_dashboard()  # Load data on startup
+
     def show_invoice(self):
         self.stacked_widget.setCurrentWidget(self.invoice_widget)
 
+    def refresh_dashboard(self):
+        data = get_invoice_summary()
+        self.invoice_widget.update_values(data)
 
 class HoverBox(QFrame):
     def __init__(self, title, value="0", parent=None):
@@ -119,6 +125,8 @@ class HoverBox(QFrame):
 
         super().leaveEvent(event)
 
+    def set_value(self, new_value):
+        self.value_label.setText(str(new_value))
 
 class InvoiceWidget(QWidget):
     def __init__(self):
