@@ -3,6 +3,8 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QStackedWidget, 
     QGridLayout, QFrame, QSizePolicy, QPushButton
 )
+from .inventory_view import InventoryViewPage
+from .add_items import AddItems_Page
 
 class HoverBox(QFrame):
     def __init__(self, title, value="", parent=None):
@@ -168,11 +170,11 @@ class InventoryWidget(QWidget):
 
         # Create Hover Box and Buttons
         self.most_sold_box = HoverBox("MOST SOLD:", "Product Name")
-        self.edit_inventory_button = StyledButton("EDIT INVENTORY")
+        self.add_inventory_button = StyledButton("ADD INVENTORY")
         self.view_button = StyledButton("VIEW")
 
         # Connect button signals (implement these functions as needed)
-        self.edit_inventory_button.clicked.connect(self.edit_inventory)
+        self.add_inventory_button.clicked.connect(self.add_inventory)
         self.view_button.clicked.connect(self.view_inventory)
 
         # Create a Container Widget for grid layout
@@ -184,8 +186,8 @@ class InventoryWidget(QWidget):
         # Most Sold box on the left
         grid_layout.addWidget(self.most_sold_box, 0, 0, 2, 1)
         
-        # Edit Inventory button on top right
-        grid_layout.addWidget(self.edit_inventory_button, 0, 1)
+        # Add Inventory button on top right
+        grid_layout.addWidget(self.add_inventory_button, 0, 1)
         
         # View button on bottom right
         grid_layout.addWidget(self.view_button, 1, 1)
@@ -196,15 +198,15 @@ class InventoryWidget(QWidget):
         # Add stretch to push everything to the top
         main_layout.addStretch()
 
-    def edit_inventory(self):
-        """Function to handle edit inventory button click"""
-        print("Edit Inventory clicked")
-        # Implement your edit inventory functionality here
+    def add_inventory(self):
+        self.add_inventory_window=AddItems_Page()
+        self.add_inventory_window.show()
+        self.add_inventory_window.showMaximized()
         
     def view_inventory(self):
-        """Function to handle view button click"""
-        print("View clicked")
-        # Implement your view functionality here
+        self.inventory_view_window=InventoryViewPage()
+        self.inventory_view_window.show()
+        self.inventory_view_window.showMaximized()
         
     def update_most_sold(self, product_name):
         """Updates the most sold product display"""

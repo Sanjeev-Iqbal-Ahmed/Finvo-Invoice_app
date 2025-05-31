@@ -1,6 +1,8 @@
 import sqlite3
 import os
 from pathlib import Path
+from datetime import datetime
+from typing import Optional, List, Dict, Any
 
 def connect():
     """
@@ -76,6 +78,25 @@ def create_tables():
         bank_ifsc TEXT,
         bank_branch TEXT
     )
+    """)
+
+    # Drop the existing inventory_items table (if it exists)
+    """cursor.execute("DROP TABLE IF EXISTS inventory_items")"""
+
+    # Create a new inventory_items table without created_at and updated_at
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS inventory_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_name TEXT NOT NULL,
+            product_code TEXT UNIQUE NOT NULL,
+            category TEXT NOT NULL DEFAULT 'Other',
+            unit TEXT NOT NULL,
+            quantity_in_stock INTEGER NOT NULL DEFAULT 0,
+            purchase_price REAL NOT NULL DEFAULT 0.0,
+            selling_price REAL NOT NULL DEFAULT 0.0,
+            gst_percentage TEXT DEFAULT 'None',
+            description TEXT
+        )
     """)
 
     conn.commit()
@@ -204,9 +225,70 @@ def save_invoice(invoice_data, items):
             conn.close()
         return None
 
+# Add this function to your db_manager.py file
+
+def get_all_invoices():
+    """
+    Retrieve all invoices from the database with their basic information
+    
+    Returns:
+        list: List of invoice dictionaries, or empty list if none found
+    """
+    try:
+        conn = connect()
+        conn.row_factory = sqlite3.Row  # Return rows as dictionaries
+        cursor = conn.cursor()
+        
+        # Get all invoices with basic information
+        cursor.execute("""
+            SELECT 
+                id,
+                invoice_no,
+                date,
+                customer_name,
+                customer_address,
+                gstin,
+                state,
+                state_code,
+                challan,
+                transporter,
+                consignment,
+                grand_total,
+                payment_status
+            FROM invoices 
+            ORDER BY date DESC, id DESC
+        """)
+        
+        invoices_rows = cursor.fetchall()
+        invoices = []
+        
+        for invoice_row in invoices_rows:
+            invoice_data = dict(invoice_row)
+            
+            # Get item count for this invoice
+            cursor.execute("SELECT COUNT(*) as item_count FROM invoice_items WHERE invoice_id = ?", (invoice_data['id'],))
+            item_count_row = cursor.fetchone()
+            invoice_data['items'] = [{'count': item_count_row['item_count']}]  # Mock items structure for compatibility
+            
+            invoices.append(invoice_data)
+        
+        conn.close()
+        return invoices
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        if conn:
+            conn.close()
+        return []
+    except Exception as e:
+        print(f"Error retrieving invoices: {e}")
+        if conn:
+            conn.close()
+        return []
+
 def get_invoice(invoice_id):
     """
-    Retrieve an invoice and its items from the database
+    Retrieve a specific invoice and its items from the database
     
     Args:
         invoice_id (int): ID of the invoice to retrieve
@@ -241,6 +323,88 @@ def get_invoice(invoice_id):
         if conn:
             conn.close()
         return None, None
+
+def delete_invoice(invoice_id):
+    """
+    Delete an invoice and its items from the database
+    
+    Args:
+        invoice_id (int): ID of the invoice to delete
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        # Delete items first (foreign key constraint)
+        cursor.execute("DELETE FROM invoice_items WHERE invoice_id = ?", (invoice_id,))
+        
+        # Delete invoice
+        cursor.execute("DELETE FROM invoices WHERE id = ?", (invoice_id,))
+        
+        # Check if any rows were affected
+        success = cursor.rowcount > 0
+        
+        conn.commit()
+        conn.close()
+        return success
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return False
+    except Exception as e:
+        print(f"Error deleting invoice: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return False
+
+def update_payment_status(invoice_id, new_status):
+    """
+    Update the payment status of an invoice
+    
+    Args:
+        invoice_id (int): ID of the invoice to update
+        new_status (str): New payment status ('Paid' or 'Pending')
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        # Update payment status
+        cursor.execute("""
+            UPDATE invoices 
+            SET payment_status = ? 
+            WHERE id = ?
+        """, (new_status, invoice_id))
+        
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        
+        print(f"Updated invoice {invoice_id} payment status to: {new_status}")
+        return success
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return False
+    except Exception as e:
+        print(f"Error updating payment status: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        return False
     
 def save_company_info(data):
     """
@@ -375,3 +539,392 @@ def get_invoice_summary():
             "due_amount": 0.0
         }
 
+     #  INVENTORY SECTION
+
+def add_inventory_item(product_name: str, product_code: str, category: str, 
+                      unit: str, quantity: int, purchase_price: float, 
+                      selling_price: float, gst_percentage: str = 'None', 
+                      description: str = '') -> bool:
+    """
+    Add a new inventory item to the database.
+    
+    Args:
+        product_name: Name of the product
+        product_code: Unique code for the product
+        category: Product category
+        unit: Unit of measurement (pcs/kg/box etc.)
+        quantity: Quantity in stock
+        purchase_price: Purchase price of the item
+        selling_price: Selling price of the item
+        gst_percentage: GST percentage (optional)
+        description: Product description (optional)
+    
+    Returns:
+        bool: True if item was added successfully, False otherwise
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        # Check if product code already exists
+        cursor.execute("SELECT id FROM inventory_items WHERE product_code = ?", (product_code,))
+        if cursor.fetchone():
+            print(f"Error: Product code '{product_code}' already exists!")
+            conn.close()
+            return False
+        
+        # Insert new item
+        cursor.execute("""
+            INSERT INTO inventory_items 
+            (product_name, product_code, category, unit, quantity_in_stock, 
+             purchase_price, selling_price, gst_percentage, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (product_name, product_code, category, unit, quantity, 
+              purchase_price, selling_price, gst_percentage, description))
+        
+        conn.commit()
+        conn.close()
+        print(f"Successfully added item: {product_name}")
+        return True
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return False
+    except Exception as e:
+        print(f"Error adding item: {e}")
+        return False
+
+def update_inventory_item(item_id: int, **kwargs) -> bool:
+    """
+    Update an existing inventory item.
+    
+    Args:
+        item_id: ID of the item to update
+        **kwargs: Fields to update (product_name, category, unit, etc.)
+    
+    Returns:
+        bool: True if update was successful, False otherwise
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        # Build dynamic update query
+        update_fields = []
+        values = []
+        
+        allowed_fields = ['product_name', 'product_code', 'category', 'unit', 
+                         'quantity_in_stock', 'purchase_price', 'selling_price', 
+                         'gst_percentage', 'description']
+        
+        for field, value in kwargs.items():
+            if field in allowed_fields:
+                update_fields.append(f"{field} = ?")
+                values.append(value)
+        
+        if not update_fields:
+            print("No valid fields to update")
+            conn.close()
+            return False
+        
+        # Add updated_at timestamp
+        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+        
+        query = f"UPDATE inventory_items SET {', '.join(update_fields)} WHERE id = ?"
+        values.append(item_id)
+        
+        cursor.execute(query, values)
+        
+        if cursor.rowcount == 0:
+            print(f"No item found with ID: {item_id}")
+            conn.close()
+            return False
+        
+        conn.commit()
+        conn.close()
+        print(f"Successfully updated item ID: {item_id}")
+        return True
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return False
+    except Exception as e:
+        print(f"Error updating item: {e}")
+        return False
+
+def delete_inventory_item(item_id: int) -> bool:
+    """
+    Delete an inventory item by ID.
+    
+    Args:
+        item_id: ID of the item to delete
+    
+    Returns:
+        bool: True if deletion was successful, False otherwise
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM inventory_items WHERE id = ?", (item_id,))
+        
+        if cursor.rowcount == 0:
+            print(f"No item found with ID: {item_id}")
+            conn.close()
+            return False
+        
+        conn.commit()
+        conn.close()
+        print(f"Successfully deleted item ID: {item_id}")
+        return True
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return False
+    except Exception as e:
+        print(f"Error deleting item: {e}")
+        return False
+
+def get_all_inventory_items():
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, product_name, product_code, category, unit, 
+                   quantity_in_stock, purchase_price, selling_price, 
+                   gst_percentage, description
+            FROM inventory_items 
+            ORDER BY id DESC
+        """)
+        
+        columns = [description[0] for description in cursor.description]
+        items = []
+        for row in cursor.fetchall():
+            items.append(dict(zip(columns, row)))
+        return items
+    except Exception as e:
+        print(f"Error fetching inventory items: {e}")
+        return []
+    
+"""def get_all_inventory_items():
+    try:
+        print("Attempting to fetch all inventory items...")  # Debug
+        
+        conn = connect()
+        cursor = conn.cursor()
+        cursor.execute(
+            SELECT id, product_name, product_code, category, unit, 
+                   quantity_in_stock, purchase_price, selling_price, 
+                   gst_percentage, description
+            FROM inventory_items 
+            ORDER BY product_name
+        )
+        
+        rows = cursor.fetchall()
+        print(f"Raw query returned {len(rows)} rows")  # Debug
+        
+        if rows:
+            print(f"First row: {rows[0]}")  # Debug
+        
+        columns = [description[0] for description in cursor.description]
+        print(f"Column names: {columns}")  # Debug
+        
+        items = []
+        for row in rows:
+            item_dict = dict(zip(columns, row))
+            items.append(item_dict)
+            
+        print(f"Converted to {len(items)} items")  # Debug
+        return items
+        
+    except Exception as e:
+        print(f"Error in get_all_inventory_items: {e}")
+        import traceback
+        traceback.print_exc()  # This will show the full error trace
+        return []"""
+    
+def get_inventory_item_by_code(product_code: str) -> Optional[Dict[str, Any]]:
+    """
+    Retrieve a specific inventory item by product code.
+    
+    Args:
+        product_code: Product code to search for
+    
+    Returns:
+        Dictionary containing item data or None if not found
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, product_name, product_code, category, unit, 
+                   quantity_in_stock, purchase_price, selling_price, 
+                   gst_percentage, description, created_at, updated_at
+            FROM inventory_items 
+            WHERE product_code = ?
+        """, (product_code,))
+        
+        row = cursor.fetchone()
+        
+        if row:
+            columns = [description[0] for description in cursor.description]
+            item = dict(zip(columns, row))
+            conn.close()
+            return item
+        
+        conn.close()
+        return None
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return None
+    except Exception as e:
+        print(f"Error retrieving item: {e}")
+        return None
+
+def search_inventory_items(search_term: str) -> List[Dict[str, Any]]:
+    """
+    Search inventory items by name, code, or category.
+    
+    Args:
+        search_term: Term to search for
+    
+    Returns:
+        List of dictionaries containing matching items
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        search_pattern = f"%{search_term}%"
+        cursor.execute("""
+            SELECT id, product_name, product_code, category, unit, 
+                   quantity_in_stock, purchase_price, selling_price, 
+                   gst_percentage, description, created_at, updated_at
+            FROM inventory_items 
+            WHERE product_name LIKE ? OR product_code LIKE ? OR category LIKE ?
+            ORDER BY product_name
+        """, (search_pattern, search_pattern, search_pattern))
+        
+        columns = [description[0] for description in cursor.description]
+        items = []
+        
+        for row in cursor.fetchall():
+            item = dict(zip(columns, row))
+            items.append(item)
+        
+        conn.close()
+        return items
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return []
+    except Exception as e:
+        print(f"Error searching items: {e}")
+        return []
+
+def update_stock_quantity(product_code: str, quantity_change: int) -> bool:
+    """
+    Update stock quantity for a product (for sales/purchases).
+    
+    Args:
+        product_code: Product code to update
+        quantity_change: Change in quantity (positive for additions, negative for sales)
+    
+    Returns:
+        bool: True if update was successful, False otherwise
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        # Get current quantity
+        cursor.execute("SELECT quantity_in_stock FROM inventory_items WHERE product_code = ?", 
+                      (product_code,))
+        result = cursor.fetchone()
+        
+        if not result:
+            print(f"Product code '{product_code}' not found")
+            conn.close()
+            return False
+        
+        current_quantity = result[0]
+        new_quantity = current_quantity + quantity_change
+        
+        if new_quantity < 0:
+            print(f"Insufficient stock. Current: {current_quantity}, Requested: {abs(quantity_change)}")
+            conn.close()
+            return False
+        
+        # Update quantity
+        cursor.execute("""
+            UPDATE inventory_items 
+            SET quantity_in_stock = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE product_code = ?
+        """, (new_quantity, product_code))
+        
+        conn.commit()
+        conn.close()
+        print(f"Stock updated for {product_code}: {current_quantity} -> {new_quantity}")
+        return True
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return False
+    except Exception as e:
+        print(f"Error updating stock: {e}")
+        return False
+
+def get_low_stock_items(threshold: int = 10) -> List[Dict[str, Any]]:
+    """
+    Get items with stock below the specified threshold.
+    
+    Args:
+        threshold: Stock threshold (default: 10)
+    
+    Returns:
+        List of dictionaries containing low stock items
+    """
+    try:
+        conn = connect()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, product_name, product_code, category, unit, 
+                   quantity_in_stock, purchase_price, selling_price, 
+                   gst_percentage, description, created_at, updated_at
+            FROM inventory_items 
+            WHERE quantity_in_stock <= ?
+            ORDER BY quantity_in_stock ASC
+        """, (threshold,))
+        
+        columns = [description[0] for description in cursor.description]
+        items = []
+        
+        for row in cursor.fetchall():
+            item = dict(zip(columns, row))
+            items.append(item)
+        
+        conn.close()
+        return items
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return []
+    except Exception as e:
+        print(f"Error retrieving low stock items: {e}")
+        return []
+
+# Initialize database on import
+def initialize_database():
+    """Initialize the database by creating necessary tables."""
+    try:
+        create_tables()
+        print("Database initialized successfully")
+    except Exception as e:
+        print(f"Error initializing database: {e}")
+
+# Call initialization when module is imported
+if __name__ == "__main__":
+    initialize_database()

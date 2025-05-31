@@ -41,7 +41,6 @@ class CreateInvoice(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Create Invoice")
-        self.resize(1200, 800)
         
         self.current_invoice_id = None
         
@@ -490,6 +489,7 @@ class CreateInvoice(QWidget):
         return item.text() if item else ""
 
     def save_invoice_to_db(self):
+        
         """Open payment status dialog before saving the invoice"""
         payment_status = self.get_payment_status()
         

@@ -11,8 +11,6 @@ class CreateChallan(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Create Challan")
-        self.resize(1200, 800)
-        
         
         # Create a main scroll area for the entire window
         main_scroll = QScrollArea()

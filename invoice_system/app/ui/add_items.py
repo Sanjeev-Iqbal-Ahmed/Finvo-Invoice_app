@@ -2,14 +2,19 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QComboBox, QPushButton, QTextEdit, QFormLayout, QSpinBox,
-    QDoubleSpinBox, QStackedWidget, QFrame
+    QDoubleSpinBox, QStackedWidget, QFrame, QMessageBox
 )
 from PySide6.QtGui import QFont
+from ..models.db_manager import add_inventory_item, initialize_database
 
-class AddItemPage(QWidget):
+class AddItems_Page(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Initialize database on startup
+        initialize_database()
         self.setup_ui()
+        self.setWindowTitle("Add Items Page")
+        self.setMinimumSize(700, 650)
         
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
@@ -93,7 +98,7 @@ class AddItemPage(QWidget):
         # Product Code 
         self.product_code = QLineEdit()
         self.product_code.setPlaceholderText("Enter product code ")
-        form_layout.addRow("Product Code ", self.product_code)
+        form_layout.addRow("Product Code:", self.product_code)
         
         # Category
         self.category = QComboBox()
@@ -150,7 +155,6 @@ class AddItemPage(QWidget):
         self.clear_button.setObjectName("clearButton")
         self.clear_button.setMinimumWidth(120)
         
-        
         buttons_layout.addStretch()
         buttons_layout.addWidget(self.save_button)
         buttons_layout.addWidget(self.clear_button)
@@ -163,7 +167,43 @@ class AddItemPage(QWidget):
         self.clear_button.clicked.connect(self.clear_form)
         self.save_button.clicked.connect(self.save_item)
         
+    def validate_form(self):
+        """Validate form data before saving."""
+        errors = []
+        
+        # Check required fields
+        if not self.product_name.text().strip():
+            errors.append("Product Name is required")
+            
+        if not self.product_code.text().strip():
+            errors.append("Product Code is required")
+            
+        if not self.unit.text().strip():
+            errors.append("Unit is required")
+            
+        # Check if selling price is not less than purchase price
+        if self.selling_price.value() < self.purchase_price.value():
+            errors.append("Selling price should not be less than purchase price")
+            
+        return errors
+    
+    def show_message(self, title, message, message_type="information"):
+        """Show message box to user."""
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle(title)
+        msg_box.setText(message)
+        
+        if message_type == "warning":
+            msg_box.setIcon(QMessageBox.Warning)
+        elif message_type == "error":
+            msg_box.setIcon(QMessageBox.Critical)
+        else:
+            msg_box.setIcon(QMessageBox.Information)
+            
+        msg_box.exec()
+        
     def clear_form(self):
+        """Clear all form fields."""
         self.product_name.clear()
         self.product_code.clear()
         self.category.setCurrentIndex(0)
@@ -175,70 +215,48 @@ class AddItemPage(QWidget):
         self.description.clear()
         
     def save_item(self):
-        # TODO: Implement save logic
-        # This would typically involve validation and database operations
-        pass
-
-class InventoryView(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setup_ui()
+        """Save the inventory item to database."""
+        # Validate form data
+        errors = self.validate_form()
+        if errors:
+            error_message = "Please fix the following errors:\n\n" + "\n".join(f"• {error}" for error in errors)
+            self.show_message("Validation Error", error_message, "warning")
+            return
         
-    def setup_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        # Get form data
+        product_name = self.product_name.text().strip()
+        product_code = self.product_code.text().strip()
+        category = self.category.currentText()
+        unit = self.unit.text().strip()
+        quantity = self.quantity.value()
+        purchase_price = self.purchase_price.value()
+        selling_price = self.selling_price.value()
+        gst_percentage = self.gst.currentText()
+        description = self.description.toPlainText().strip()
         
-        # Create stacked widget for inventory pages
-        self.stacked_widget = QStackedWidget()
-        main_layout.addWidget(self.stacked_widget)
+        # Handle default category
+        if category == "Default":
+            category = "Other"
         
-        # Create inventory main page
-        self.inventory_main_page = QWidget()
-        self.setup_inventory_main_page()
-        self.stacked_widget.addWidget(self.inventory_main_page)
-        
-        # Create add item page
-        self.add_item_page = AddItemPage()
-        self.add_item_page.back_button.clicked.connect(self.show_inventory_main)
-        self.stacked_widget.addWidget(self.add_item_page)
-        
-        # Set default page
-        self.stacked_widget.setCurrentWidget(self.inventory_main_page)
-        
-    def setup_inventory_main_page(self):
-        layout = QVBoxLayout(self.inventory_main_page)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(20)
-        
-        # Header with title and add button
-        header_layout = QHBoxLayout()
-        header_label = QLabel("Inventory Management")
-        header_label.setObjectName("pageHeader")
-        font = QFont()
-        font.setPointSize(16)
-        font.setBold(True)
-        header_label.setFont(font)
-        
-        self.add_item_button = QPushButton("Add New Item")
-        self.add_item_button.setObjectName("primaryButton")
-        self.add_item_button.clicked.connect(self.show_add_item)
-        
-        header_layout.addWidget(header_label)
-        header_layout.addStretch()
-        header_layout.addWidget(self.add_item_button)
-        
-        layout.addLayout(header_layout)
-        
-        # Placeholder for inventory list
-        inventory_placeholder = QLabel("Inventory items will be displayed here")
-        inventory_placeholder.setAlignment(Qt.AlignCenter)
-        inventory_placeholder.setObjectName("placeholderText")
-        layout.addWidget(inventory_placeholder)
-        layout.addStretch()
-    
-    def show_add_item(self):
-        self.stacked_widget.setCurrentWidget(self.add_item_page)
-    
-    def show_inventory_main(self):
-        self.stacked_widget.setCurrentWidget(self.inventory_main_page)
+        # Save to database
+        try:
+            success = add_inventory_item(
+                product_name=product_name,
+                product_code=product_code,
+                category=category,
+                unit=unit,
+                quantity=quantity,
+                purchase_price=purchase_price,
+                selling_price=selling_price,
+                gst_percentage=gst_percentage,
+                description=description
+            )
+            
+            if success:
+                self.show_message("Success", f"Item '{product_name}' has been added successfully!", "information")
+                self.clear_form()  # Clear form after successful save
+            else:
+                self.show_message("Error", "Failed to save item. Product code might already exist.", "error")
+                
+        except Exception as e:
+            self.show_message("Error", f"An error occurred while saving: {str(e)}", "error")

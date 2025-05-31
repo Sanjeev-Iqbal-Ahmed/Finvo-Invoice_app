@@ -6,6 +6,8 @@ from PySide6.QtWidgets import (
 from .create_invoice import CreateInvoice
 from .admin_page import AdminPage
 from .create_challan import CreateChallan
+from .manage_invoice import ManageInvoice
+from .add_items import AddItems_Page
 
 class SidebarButton(QToolButton):
     def __init__(self, text, has_icon=True, parent=None):
@@ -62,6 +64,7 @@ class Sidebar(QFrame):
         self.invoice_menu_layout.addWidget(self.create_invoice_button)
         
         self.manage_invoice_button = SubMenuButton("Manage Invoice")
+        self.manage_invoice_button.clicked.connect(self.open_manageInvoice_page)
         self.invoice_menu_layout.addWidget(self.manage_invoice_button)
         
         self.invoice_animation_layout.addWidget(self.invoice_menu)
@@ -125,6 +128,7 @@ class Sidebar(QFrame):
         
         self.add_inventory_button = SubMenuButton("  Add Items")
         self.inventory_menu_layout.addWidget(self.add_inventory_button)
+        self.add_inventory_button.clicked.connect(self.open_addItems_page)
         
         self.inventory_animation_layout.addWidget(self.inventory_menu)
         
@@ -263,6 +267,7 @@ class Sidebar(QFrame):
     def open_createInvoice_page(self):
         self.createInvoice_window=CreateInvoice(None)
         self.createInvoice_window.show()
+        self.createInvoice_window.showMaximized()
 
     def open_admin(self):
         self.admin_window=AdminPage()
@@ -271,4 +276,17 @@ class Sidebar(QFrame):
     def open_challanPage(self):
         self.createChallan_window=CreateChallan()
         self.createChallan_window.show()
+        self.createChallan_window.showMaximized()
         
+    def open_manageInvoice_page(self):
+        # Assuming you have a main_content widget where pages are displayed
+        """self.clear_main_content()"""
+        self.manageInvoice_window = ManageInvoice()
+        """self.main_content_layout.addWidget(self.manage_invoice_page)"""
+        self.manageInvoice_window.show()
+        self.manageInvoice_window.showMaximized()
+
+    def open_addItems_page(self):
+        self.addItems_window=AddItems_Page()
+        self.addItems_window.show()
+        self.addItems_window.showMaximized()
