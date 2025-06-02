@@ -274,39 +274,47 @@ class ManageInvoice(QWidget):
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout(actions_widget)
                 actions_layout.setContentsMargins(4, 2, 4, 2)
-                
+
                 # View button
                 view_btn = QPushButton("View")
                 view_btn.setToolTip("View Invoice")
                 view_btn.clicked.connect(lambda checked, id=invoice['id']: self.view_invoice(id))
                 actions_layout.addWidget(view_btn)
-                
-                # Payment Status Toggle button 
+
+                # Payment Status Toggle button or Spacer
                 current_status = invoice.get('payment_status', 'Pending')
-                if current_status == 'Paid':
-                    toggle_btn = QPushButton("Mark Pending")
-                    toggle_btn.setStyleSheet("background-color: #CA7842; color: white;")
-                    toggle_btn.setToolTip("Change status to Pending")
-                    new_status = 'Pending'
-                else:
+
+                if current_status == 'Pending':
                     toggle_btn = QPushButton("Mark Paid")
                     toggle_btn.setStyleSheet("background-color: #0D4715; color: white;")
                     toggle_btn.setToolTip("Change status to Paid")
                     new_status = 'Paid'
-                
-                toggle_btn.clicked.connect(lambda checked, id=invoice['id'], status=new_status: self.toggle_payment_status(id, status))
-                actions_layout.addWidget(toggle_btn)
-                
+
+                    toggle_btn.clicked.connect(
+                        lambda checked, id=invoice['id'], status=new_status: self.toggle_payment_status(id, status)
+                    )
+                    actions_layout.addWidget(toggle_btn)
+                else:
+                    # Add an empty spacer button (same size as real one for alignment)
+                    spacer_btn = QPushButton()
+                    spacer_btn.setFixedSize(85, 28)  # Match size to real button
+                    spacer_btn.setEnabled(False)
+                    spacer_btn.setFlat(True)
+                    spacer_btn.setStyleSheet("border: none; background-color: transparent;")
+                    actions_layout.addWidget(spacer_btn)
+
                 # Delete button
                 delete_btn = QPushButton("Delete")
                 delete_btn.setToolTip("Delete Invoice")
                 delete_btn.clicked.connect(lambda checked, id=invoice['id']: self.delete_invoice(id))
                 actions_layout.addWidget(delete_btn)
-                
+
+                # Add to table
                 self.invoices_table.setCellWidget(row_position, 6, actions_widget)
-                
+
                 # Store invoice ID (hidden)
                 self.invoices_table.setItem(row_position, 7, QTableWidgetItem(str(invoice['id'])))
+
             
             # Update statistics
             self.total_invoices_value.setText(str(total_count))

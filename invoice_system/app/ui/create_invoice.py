@@ -330,11 +330,6 @@ class CreateInvoice(QWidget):
         self.save_button.clicked.connect(self.save_invoice_to_db)
         button_layout.addWidget(self.save_button)
         
-        """save_print_button = QPushButton("Save & Print")
-        save_print_button.setObjectName("saveAndPrintButton")
-        save_print_button.clicked.connect(self.save_and_print)
-        button_layout.addWidget(save_print_button)"""
-        
         main_layout.addLayout(button_layout)
         
         # Set the main container to the scroll area
@@ -651,8 +646,3 @@ class CreateInvoice(QWidget):
             preview_window = InvoicePreviewWindow(self.current_invoice_id, self)
             preview_window.show()       
     
-    """def save_and_print(self):
-        # First save the invoice
-        self.save_invoice_to_db()
-        # Then implement print functionality here
-        print("Printing functionality to be implemented")"""

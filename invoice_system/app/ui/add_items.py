@@ -14,7 +14,6 @@ class AddItems_Page(QWidget):
         initialize_database()
         self.setup_ui()
         self.setWindowTitle("Add Items Page")
-        self.setMinimumSize(700, 650)
         
     def setup_ui(self):
         main_layout = QVBoxLayout(self)

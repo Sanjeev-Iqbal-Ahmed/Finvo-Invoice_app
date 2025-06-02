@@ -99,6 +99,44 @@ def create_tables():
         )
     """)
 
+    # Create challans table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS challans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_name TEXT NOT NULL,
+            customer_address TEXT,
+            gstin TEXT,
+            state TEXT,
+            state_code TEXT,
+            challan_no TEXT UNIQUE NOT NULL,
+            date TEXT NOT NULL,
+            vehicle TEXT,
+            transporter TEXT,
+            lr TEXT,
+            grand_total REAL DEFAULT 0.0
+        )
+    ''')
+    
+    # Create challan_items table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS challan_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            challan_id INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            hsn TEXT,
+            quantity INTEGER DEFAULT 0,
+            type TEXT,
+            rate REAL DEFAULT 0.0,
+            total REAL DEFAULT 0.0,
+            FOREIGN KEY (challan_id) REFERENCES challans (id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create indexes for better performance
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_challan_no ON challans (challan_no)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_challan_items_challan_id ON challan_items (challan_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_challans_date ON challans (date)')
+    
     conn.commit()
     conn.close()
 
@@ -256,7 +294,7 @@ def get_all_invoices():
                 grand_total,
                 payment_status
             FROM invoices 
-            ORDER BY date DESC, id DESC
+            ORDER BY id DESC
         """)
         
         invoices_rows = cursor.fetchall()
@@ -327,10 +365,8 @@ def get_invoice(invoice_id):
 def delete_invoice(invoice_id):
     """
     Delete an invoice and its items from the database
-    
     Args:
-        invoice_id (int): ID of the invoice to delete
-        
+        invoice_id (int): ID of the invoice to delete   
     Returns:
         bool: True if successful, False otherwise
     """
@@ -596,12 +632,7 @@ def add_inventory_item(product_name: str, product_code: str, category: str,
 
 def update_inventory_item(item_id: int, **kwargs) -> bool:
     """
-    Update an existing inventory item.
-    
-    Args:
-        item_id: ID of the item to update
-        **kwargs: Fields to update (product_name, category, unit, etc.)
-    
+    Update an existing inventory item. 
     Returns:
         bool: True if update was successful, False otherwise
     """
@@ -628,10 +659,13 @@ def update_inventory_item(item_id: int, **kwargs) -> bool:
             return False
         
         # Add updated_at timestamp
-        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+        """update_fields.append("updated_at = CURRENT_TIMESTAMP")"""
         
         query = f"UPDATE inventory_items SET {', '.join(update_fields)} WHERE id = ?"
         values.append(item_id)
+        
+        print(f"Executing query: {query}")  # Debug line
+        print(f"With values: {values}")     # Debug line
         
         cursor.execute(query, values)
         
@@ -686,6 +720,7 @@ def delete_inventory_item(item_id: int) -> bool:
         return False
 
 def get_all_inventory_items():
+    """Get all inventory items from database with better error handling."""
     try:
         conn = connect()
         cursor = conn.cursor()
@@ -700,48 +735,24 @@ def get_all_inventory_items():
         columns = [description[0] for description in cursor.description]
         items = []
         for row in cursor.fetchall():
-            items.append(dict(zip(columns, row)))
+            item_dict = dict(zip(columns, row))
+            # Ensure all values are properly handled
+            for key, value in item_dict.items():
+                if value is None:
+                    if key in ['purchase_price', 'selling_price']:
+                        item_dict[key] = 0.0
+                    elif key in ['quantity_in_stock']:
+                        item_dict[key] = 0
+                    else:
+                        item_dict[key] = ''
+            items.append(item_dict)
+        
+        conn.close()
         return items
+        
     except Exception as e:
         print(f"Error fetching inventory items: {e}")
         return []
-    
-"""def get_all_inventory_items():
-    try:
-        print("Attempting to fetch all inventory items...")  # Debug
-        
-        conn = connect()
-        cursor = conn.cursor()
-        cursor.execute(
-            SELECT id, product_name, product_code, category, unit, 
-                   quantity_in_stock, purchase_price, selling_price, 
-                   gst_percentage, description
-            FROM inventory_items 
-            ORDER BY product_name
-        )
-        
-        rows = cursor.fetchall()
-        print(f"Raw query returned {len(rows)} rows")  # Debug
-        
-        if rows:
-            print(f"First row: {rows[0]}")  # Debug
-        
-        columns = [description[0] for description in cursor.description]
-        print(f"Column names: {columns}")  # Debug
-        
-        items = []
-        for row in rows:
-            item_dict = dict(zip(columns, row))
-            items.append(item_dict)
-            
-        print(f"Converted to {len(items)} items")  # Debug
-        return items
-        
-    except Exception as e:
-        print(f"Error in get_all_inventory_items: {e}")
-        import traceback
-        traceback.print_exc()  # This will show the full error trace
-        return []"""
     
 def get_inventory_item_by_code(product_code: str) -> Optional[Dict[str, Any]]:
     """
@@ -801,7 +812,7 @@ def search_inventory_items(search_term: str) -> List[Dict[str, Any]]:
         cursor.execute("""
             SELECT id, product_name, product_code, category, unit, 
                    quantity_in_stock, purchase_price, selling_price, 
-                   gst_percentage, description, created_at, updated_at
+                   gst_percentage, description
             FROM inventory_items 
             WHERE product_name LIKE ? OR product_code LIKE ? OR category LIKE ?
             ORDER BY product_name
@@ -893,7 +904,7 @@ def get_low_stock_items(threshold: int = 10) -> List[Dict[str, Any]]:
         cursor.execute("""
             SELECT id, product_name, product_code, category, unit, 
                    quantity_in_stock, purchase_price, selling_price, 
-                   gst_percentage, description, created_at, updated_at
+                   gst_percentage, description
             FROM inventory_items 
             WHERE quantity_in_stock <= ?
             ORDER BY quantity_in_stock ASC
@@ -928,3 +939,320 @@ def initialize_database():
 # Call initialization when module is imported
 if __name__ == "__main__":
     initialize_database()
+
+    # CHALLAN SECTION
+
+def save_challan(challan_data: Dict, items: List[Dict]) -> Optional[int]:
+    """
+    Save challan and its items to database
+    
+    Args:
+        challan_data: Dictionary containing challan information
+        items: List of dictionaries containing item information
+    
+    Returns:
+        challan_id if successful, None if failed
+    """
+    conn = connect()
+    if not conn:
+        return None
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Insert challan data
+        cursor.execute('''
+            INSERT INTO challans (
+                customer_name, customer_address, gstin, state, state_code,
+                challan_no, date, vehicle, transporter, lr, grand_total
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            challan_data.get('customer_name', ''),
+            challan_data.get('customer_address', ''),
+            challan_data.get('gstin', ''),
+            challan_data.get('state', ''),
+            challan_data.get('state_code', ''),
+            challan_data.get('challan_no', ''),
+            challan_data.get('date', ''),
+            challan_data.get('vehicle', ''),
+            challan_data.get('transporter', ''),
+            challan_data.get('lr', ''),
+            challan_data.get('grand_total', 0.0)
+        ))
+        
+        challan_id = cursor.lastrowid
+        
+        # Insert items
+        for item in items:
+            cursor.execute('''
+                INSERT INTO challan_items (
+                    challan_id, description, hsn, quantity, type, rate, total
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                challan_id,
+                item.get('description', ''),
+                item.get('hsn', ''),
+                item.get('quantity', 0),
+                item.get('type', ''),
+                item.get('rate', 0.0),
+                item.get('total', 0.0)
+            ))
+        
+        conn.commit()
+        print(f"Challan saved successfully with ID: {challan_id}")
+        return challan_id
+        
+    except sqlite3.IntegrityError as e:
+        print(f"Integrity error: {e}")
+        conn.rollback()
+        return None
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        conn.rollback()
+        return None
+    finally:
+        conn.close()
+
+def get_challan_by_id(challan_id):
+    """
+    Retrieve challan and its items by ID
+    Args:
+        challan_id: The ID of the challan to retrieve
+    Returns:
+        Tuple of (challan_data, items_list) if found, None if not found
+    """
+    conn = connect()
+    if not conn:
+        return None
+    
+    try:
+        conn.row_factory = sqlite3.Row 
+        cursor = conn.cursor()
+        
+        # Get challan data
+        cursor.execute('SELECT * FROM challans WHERE id = ?', (challan_id,))
+        challan_row = cursor.fetchone()
+        
+        if not challan_row:
+            return None
+        
+        # Convert row to dictionary - now this will work!
+        challan_data = dict(challan_row)
+        
+        # Get items
+        cursor.execute('SELECT * FROM challan_items WHERE challan_id = ?', (challan_id,))
+        items_rows = cursor.fetchall()
+        
+        items = [dict(row) for row in items_rows]
+        
+        return challan_data, items
+        
+    except sqlite3.Error as e:
+        print(f"Error retrieving challan: {e}")
+        return None
+    finally:
+        conn.close()
+
+def get_all_challans():
+    """
+    Retrieve all challans from the database with their basic information
+    
+    Returns:
+        list: List of challan dictionaries, or empty list if none found
+    """
+    try:
+        conn = connect()
+        conn.row_factory = sqlite3.Row  # ✅ Add this line - same as in get_all_invoices()
+        cursor = conn.cursor()
+        
+        # Get all challans with basic information
+        cursor.execute("""
+            SELECT 
+                id,
+                customer_name,
+                customer_address,
+                gstin,
+                state,
+                state_code,
+                challan_no,
+                date,
+                vehicle,
+                transporter,
+                lr,
+                grand_total
+            FROM challans 
+            ORDER BY id DESC
+        """)
+        
+        challans_rows = cursor.fetchall()
+        challans = []
+        
+        for challan_row in challans_rows:
+            challan_data = dict(challan_row) 
+            
+            # Get item count for this challan
+            cursor.execute("SELECT COUNT(*) as item_count FROM challan_items WHERE challan_id = ?", (challan_data['id'],))
+            item_count_row = cursor.fetchone()
+            challan_data['items'] = [{'count': item_count_row['item_count']}]  
+            challans.append(challan_data)
+        
+        conn.close()
+        return challans
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        if 'conn' in locals():
+            conn.close()
+        return []
+    except Exception as e:
+        print(f"Error retrieving challans: {e}")
+        if 'conn' in locals():
+            conn.close()
+        return []
+
+def delete_challan(challan_id: int) -> bool:
+    """
+    Delete a challan and its items
+    
+    Args:
+        challan_id: ID of the challan to delete
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    conn = connect()
+    if not conn:
+        return False
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Delete challan (items will be deleted automatically due to CASCADE)
+        cursor.execute('DELETE FROM challans WHERE id = ?', (challan_id,))
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            print(f"Challan {challan_id} deleted successfully")
+            return True
+        else:
+            print(f"Challan {challan_id} not found")
+            return False
+            
+    except sqlite3.Error as e:
+        print(f"Error deleting challan: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def search_challans(search_term: str) -> List[Dict]:
+    """
+    Search challans by customer name, challan number, or GSTIN
+    
+    Args:
+        search_term: Term to search for
+    
+    Returns:
+        List of matching challan dictionaries
+    """
+    conn = connect()
+    if not conn:
+        return []
+    
+    try:
+        cursor = conn.cursor()
+        search_pattern = f"%{search_term}%"
+        
+        cursor.execute('''
+            SELECT * FROM challans 
+            WHERE customer_name LIKE ? 
+            OR challan_no LIKE ? 
+            OR gstin LIKE ?
+            ORDER BY date DESC
+        ''', (search_pattern, search_pattern, search_pattern))
+        
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+        
+    except sqlite3.Error as e:
+        print(f"Error searching challans: {e}")
+        return []
+    finally:
+        conn.close()
+
+def update_challan(challan_id: int, challan_data: Dict, items: List[Dict]) -> bool:
+    """
+    Update an existing challan and its items
+    
+    Args:
+        challan_id: ID of the challan to update
+        challan_data: Updated challan data
+        items: Updated items list
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    conn = connect()
+    if not conn:
+        return False
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Update challan data
+        cursor.execute('''
+            UPDATE challans SET
+                customer_name = ?, customer_address = ?, gstin = ?, state = ?, 
+                state_code = ?, challan_no = ?, date = ?, vehicle = ?, 
+                transporter = ?, lr = ?, grand_total = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            challan_data.get('customer_name', ''),
+            challan_data.get('customer_address', ''),
+            challan_data.get('gstin', ''),
+            challan_data.get('state', ''),
+            challan_data.get('state_code', ''),
+            challan_data.get('challan_no', ''),
+            challan_data.get('date', ''),
+            challan_data.get('vehicle', ''),
+            challan_data.get('transporter', ''),
+            challan_data.get('lr', ''),
+            challan_data.get('grand_total', 0.0),
+            challan_id
+        ))
+        
+        # Delete existing items
+        cursor.execute('DELETE FROM challan_items WHERE challan_id = ?', (challan_id,))
+        
+        # Insert updated items
+        for item in items:
+            cursor.execute('''
+                INSERT INTO challan_items (
+                    challan_id, description, hsn, quantity, type, rate, total
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                challan_id,
+                item.get('description', ''),
+                item.get('hsn', ''),
+                item.get('quantity', 0),
+                item.get('type', ''),
+                item.get('rate', 0.0),
+                item.get('total', 0.0)
+            ))
+        
+        conn.commit()
+        print(f"Challan {challan_id} updated successfully")
+        return True
+        
+    except sqlite3.Error as e:
+        print(f"Error updating challan: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+# Initialize database when module is imported
+create_tables()
+
+if __name__ == "__main__":
+    print("Database initialization completed")

@@ -22,7 +22,7 @@ class EditItemDialog(QDialog):
         self.original_data = item_data.copy()  # Keep original data for comparison
         self.setWindowTitle("Edit Inventory Item")
         self.setModal(True)
-        self.setMinimumSize(450, 550)
+        self.setMinimumSize(500, 600)
         self.setup_ui()
         self.load_data()
         
@@ -35,6 +35,11 @@ class EditItemDialog(QDialog):
         self.setStyleSheet("""
             QDialog {
                 background-color: #f5f5f5;
+            }
+            QLabel {
+                background-color: transparent;
+                font-weight: bold;
+                color: #333;
             }
             QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit {
                 background-color: white;
@@ -51,13 +56,34 @@ class EditItemDialog(QDialog):
                 color: #666;
             }
             QPushButton {
+                background-color: #555599;
+                color: white;
                 padding: 10px 20px;
                 border-radius: 4px;
                 font-weight: bold;
                 min-width: 80px;
             }
+            QPushButton:hover {
+                background-color: #444488;
+            }
+            QPushButton:pressed {
+                background-color: #333377;
+            }
+            QDialogButtonBox QPushButton {
+                background-color: #555599;
+                color: white;
+                padding: 8px 18px;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+            QDialogButtonBox QPushButton:hover {
+                background-color: #444488;
+            }
+            QDialogButtonBox QPushButton:pressed {
+                background-color: #333377;
+            }
         """)
-        
+
         # Form layout
         form_layout = QFormLayout()
         form_layout.setSpacing(15)
@@ -66,62 +92,55 @@ class EditItemDialog(QDialog):
         # Product Name
         self.product_name = QLineEdit()
         self.product_name.setPlaceholderText("Enter product name")
-        form_layout.addRow("Product Name*:", self.product_name)
+        form_layout.addRow("Product Name:", self.product_name)
         
         # Product Code (readonly)
         self.product_code = QLineEdit()
         self.product_code.setReadOnly(True)
         self.product_code.setToolTip("Product code cannot be changed")
-        form_layout.addRow("Product Code:", self.product_code)
+        form_layout.addRow(QLabel("Product Code:"), self.product_code)
         
         # Category
         self.category = QComboBox()
         self.category.addItems(["Electronics", "Clothing", "Food", "Stationery", "Home Appliances", "Other"])
         self.category.setEditable(True)  # Allow custom categories
-        form_layout.addRow("Category:", self.category)
+        form_layout.addRow(QLabel("Category:"), self.category)
         
         # Unit
         self.unit = QLineEdit()
         self.unit.setPlaceholderText("e.g., pcs, kg, ltr")
-        form_layout.addRow("Unit*:", self.unit)
+        form_layout.addRow(QLabel("Unit:"), self.unit)
         
         # Quantity
         self.quantity = QSpinBox()
         self.quantity.setRange(0, 100000)
         self.quantity.setSuffix(" units")
-        form_layout.addRow("Quantity:", self.quantity)
+        form_layout.addRow(QLabel("Stock:"), self.quantity)
         
         # Purchase Price
         self.purchase_price = QDoubleSpinBox()
         self.purchase_price.setRange(0, 1000000)
         self.purchase_price.setPrefix("₹ ")
         self.purchase_price.setDecimals(2)
-        self.purchase_price.valueChanged.connect(self.calculate_profit_margin)
-        form_layout.addRow("Purchase Price:", self.purchase_price)
+        form_layout.addRow(QLabel("Purchase Price:"), self.purchase_price)
         
         # Selling Price
         self.selling_price = QDoubleSpinBox()
         self.selling_price.setRange(0, 1000000)
         self.selling_price.setPrefix("₹ ")
         self.selling_price.setDecimals(2)
-        self.selling_price.valueChanged.connect(self.calculate_profit_margin)
-        form_layout.addRow("Selling Price:", self.selling_price)
-        
-        # Profit Margin Display
-        self.profit_margin_label = QLabel("Profit Margin: 0%")
-        self.profit_margin_label.setStyleSheet("color: #666; font-style: italic;")
-        form_layout.addRow("", self.profit_margin_label)
+        form_layout.addRow(QLabel("Selling Price:"), self.selling_price)
         
         # GST
         self.gst = QComboBox()
         self.gst.addItems(["None", "5%", "12%", "18%", "28%"])
-        form_layout.addRow("GST %:", self.gst)
+        form_layout.addRow(QLabel("GST %:"), self.gst)
         
         # Description
         self.description = QTextEdit()
         self.description.setMaximumHeight(100)
         self.description.setPlaceholderText("Optional description...")
-        form_layout.addRow("Description:", self.description)
+        form_layout.addRow(QLabel("Description:"), self.description)
         
         layout.addLayout(form_layout)
         
@@ -131,24 +150,6 @@ class EditItemDialog(QDialog):
         button_box.accepted.connect(self.save_changes)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
-        
-    def calculate_profit_margin(self):
-        """Calculate and display profit margin."""
-        purchase = self.purchase_price.value()
-        selling = self.selling_price.value()
-        
-        if purchase > 0:
-            margin = ((selling - purchase) / purchase) * 100
-            self.profit_margin_label.setText(f"Profit Margin: {margin:.1f}%")
-            if margin < 0:
-                self.profit_margin_label.setStyleSheet("color: #cc0000; font-style: italic;")
-            elif margin > 50:
-                self.profit_margin_label.setStyleSheet("color: #00aa00; font-style: italic;")
-            else:
-                self.profit_margin_label.setStyleSheet("color: #666; font-style: italic;")
-        else:
-            self.profit_margin_label.setText("Profit Margin: 0%")
-            self.profit_margin_label.setStyleSheet("color: #666; font-style: italic;")
         
     def load_data(self):
         """Load existing data into form fields."""
@@ -179,7 +180,7 @@ class EditItemDialog(QDialog):
         self.description.setPlainText(self.item_data.get('description', ''))
         
         # Calculate initial profit margin
-        self.calculate_profit_margin()
+        """self.calculate_profit_margin()"""
         
     def has_changes(self):
         """Check if any data has been modified."""
@@ -194,13 +195,18 @@ class EditItemDialog(QDialog):
             'description': self.description.toPlainText().strip()
         }
         
+        print(f"Current data: {current_data}")  # Debug line
+        print(f"Original data: {self.original_data}")  # Debug line
+        
         for key, value in current_data.items():
-            if str(value) != str(self.original_data.get(key, '')):
+            original_value = self.original_data.get(key, '')
+            if str(value) != str(original_value):
+                print(f"Change detected in {key}: '{original_value}' -> '{value}'")  # Debug line
                 return True
         return False
         
     def save_changes(self):
-        """Save changes to database with enhanced validation."""
+        """Save changes to database with enhanced validation and debugging."""
         try:
             # Validate required fields
             if not self.product_name.text().strip():
@@ -241,26 +247,40 @@ class EditItemDialog(QDialog):
                 if reply == QMessageBox.No:
                     return
             
-            # Update item
+            # Debug: Print the data being sent
+            print(f"Updating item with ID: {self.item_data['id']}")
+            print(f"Product name: {self.product_name.text().strip()}")
+            print(f"Category: {self.category.currentText()}")
+            print(f"Unit: {self.unit.text().strip()}")
+            print(f"Quantity: {self.quantity.value()}")
+            print(f"Purchase price: {self.purchase_price.value()}")
+            print(f"Selling price: {self.selling_price.value()}")
+            print(f"GST: {self.gst.currentText()}")
+            print(f"Description: {self.description.toPlainText().strip()}")
+            
+            # Update item with explicit parameter names
             success = update_inventory_item(
                 item_id=self.item_data['id'],
                 product_name=self.product_name.text().strip(),
                 category=self.category.currentText(),
                 unit=self.unit.text().strip(),
-                quantity_in_stock=self.quantity.value(),
+                quantity_in_stock=self.quantity.value(),  # Make sure this matches the database field name
                 purchase_price=self.purchase_price.value(),
                 selling_price=self.selling_price.value(),
                 gst_percentage=self.gst.currentText(),
                 description=self.description.toPlainText().strip()
             )
             
+            print(f"Update result: {success}")  # Debug line
+            
             if success:
                 QMessageBox.information(self, "Success", "Item updated successfully!")
                 self.accept()
             else:
-                QMessageBox.critical(self, "Error", "Failed to update item! Please check your input and try again.")
+                QMessageBox.critical(self, "Error", "Failed to update item! Please check your input and try again.\n\nCheck the console for detailed error messages.")
                 
         except Exception as e:
+            print(f"Exception in save_changes: {e}")  # Debug line
             QMessageBox.critical(self, "Error", f"An error occurred while saving: {str(e)}")
             
     def reject(self):
@@ -286,6 +306,7 @@ class InventoryViewPage(QWidget):
         initialize_database()  # Ensure database is initialized
         self.setup_ui()
         self.load_inventory_data()
+        self.setWindowTitle("Inventory Management")
         
         # Auto-refresh timer (optional)
         self.refresh_timer = QTimer()
@@ -304,11 +325,14 @@ class InventoryViewPage(QWidget):
                 font-weight: bold;
             }
             QLineEdit, QComboBox {
-                background-color: #F8FAFC;
+                background-color: white;
                 border: 1px solid #cccccc;
                 padding: 5px;
                 border-radius: 3px;
                 font-weight: normal;
+            }
+            QComboBox QAbstractItemView {
+                background-color: white;  /* Dropdown list background */
             }
             QLineEdit:focus, QComboBox:focus {
                 border: 2px solid #555599;
@@ -317,31 +341,28 @@ class InventoryViewPage(QWidget):
                 padding: 8px 15px;
                 border-radius: 4px;
                 font-weight: bold;
+                color: black;
+            }
+            #refreshButton {
+                background-color: #555599;
                 color: white;
             }
-            #primaryButton {
-                background-color: #555599;
-            }
-            #primaryButton:hover {
+            #refreshButton:hover {
                 background-color: #6666aa;
             }
-            #dangerButton {
+            #deleteButton {
                 background-color: #cc4444;
+                color: white;
             }
-            #dangerButton:hover {
+            #deleteButton:hover {
                 background-color: #dd5555;
             }
-            #successButton {
+            #exportButton {
                 background-color: #44aa44;
+                color: white;
             }
-            #successButton:hover {
+            #exportButton:hover {
                 background-color: #55bb55;
-            }
-            #warningButton {
-                background-color: #dd8844;
-            }
-            #warningButton:hover {
-                background-color: #ee9955;
             }
             QTableWidget {
                 background-color: white;
@@ -392,17 +413,12 @@ class InventoryViewPage(QWidget):
         
         # Refresh button
         self.refresh_button = QPushButton("Refresh")
-        self.refresh_button.setObjectName("primaryButton")
+        self.refresh_button.setObjectName("refreshButton")
         self.refresh_button.clicked.connect(self.load_inventory_data)
-        
-        # Clear filters button
-        self.clear_filters_button = QPushButton("Clear Filters")
-        self.clear_filters_button.setObjectName("warningButton")
-        self.clear_filters_button.clicked.connect(self.clear_all_filters)
         
         header_layout.addWidget(header_label)
         header_layout.addStretch()
-        header_layout.addWidget(self.clear_filters_button)
+        """header_layout.addWidget(self.clear_filters_button)"""
         header_layout.addWidget(self.refresh_button)
         
         main_layout.addLayout(header_layout)
@@ -463,17 +479,17 @@ class InventoryViewPage(QWidget):
         buttons_layout = QHBoxLayout()
         
         self.edit_button = QPushButton("Edit Selected")
-        self.edit_button.setObjectName("primaryButton")
+        self.edit_button.setObjectName("refreshButton")
         self.edit_button.clicked.connect(self.edit_selected_item)
         self.edit_button.setEnabled(False)
         
         self.delete_button = QPushButton("Delete Selected")
-        self.delete_button.setObjectName("dangerButton")
+        self.delete_button.setObjectName("deleteButton")
         self.delete_button.clicked.connect(self.delete_selected_item)
         self.delete_button.setEnabled(False)
         
         self.export_button = QPushButton("Export Data")
-        self.export_button.setObjectName("successButton")
+        self.export_button.setObjectName("exportButton")
         self.export_button.clicked.connect(self.export_data)
         
         buttons_layout.addWidget(self.edit_button)
@@ -640,13 +656,6 @@ class InventoryViewPage(QWidget):
             
         self.populate_table(items_to_filter)
         
-    def clear_all_filters(self):
-        """Clear all search and filter criteria."""
-        self.search_input.clear()
-        self.category_filter.setCurrentIndex(0)  # "All Categories"
-        self.low_stock_checkbox.setChecked(False)
-        self.load_inventory_data()  # Reload all data
-        
     def on_selection_changed(self):
         """Handle table selection changes."""
         has_selection = bool(self.table.currentRow() >= 0)
@@ -692,7 +701,7 @@ class InventoryViewPage(QWidget):
             self, "Confirm Deletion",
             f"Are you sure you want to delete '{selected_item['product_name']}'?\n\n"
             f"Product Code: {selected_item.get('product_code', 'N/A')}\n"
-            f"Current Stock: {selected_item.get('quantity_in_stock', 0)} {selected_item.get('unit', 'units')}\n\n"
+            f"Current Stock: {selected_item.get('quantity_in_stock', 0)}\n"
             f"This action cannot be undone.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No

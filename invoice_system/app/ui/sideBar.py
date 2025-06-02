@@ -8,6 +8,7 @@ from .admin_page import AdminPage
 from .create_challan import CreateChallan
 from .manage_invoice import ManageInvoice
 from .add_items import AddItems_Page
+from .manage_challan import Manage_Challan 
 
 class SidebarButton(QToolButton):
     def __init__(self, text, has_icon=True, parent=None):
@@ -99,6 +100,7 @@ class Sidebar(QFrame):
         
         self.manage_challan_button = SubMenuButton("Manage Challan")
         self.challan_menu_layout.addWidget(self.manage_challan_button)
+        self.manage_challan_button.clicked.connect(self.open_manageChallan_page)
         
         self.challan_animation_layout.addWidget(self.challan_menu)
         
@@ -109,7 +111,7 @@ class Sidebar(QFrame):
         self.challan_animation_container.setMaximumHeight(0)
         
         # Inventory Button and Submenu
-        self.inventory_button = SidebarButton("INVENTORY ▼")
+        self.inventory_button = SidebarButton("INVENTORY ")
         self.inventory_button.setCheckable(True)
         self.inventory_button.clicked.connect(self.toggle_inventory_menu)
         self.layout.addWidget(self.inventory_button)
@@ -125,10 +127,6 @@ class Sidebar(QFrame):
         self.inventory_menu = QWidget()
         self.inventory_menu_layout = QVBoxLayout(self.inventory_menu)
         self.inventory_menu_layout.setContentsMargins(15, 0, 0, 0)
-        
-        self.add_inventory_button = SubMenuButton("  Add Items")
-        self.inventory_menu_layout.addWidget(self.add_inventory_button)
-        self.add_inventory_button.clicked.connect(self.open_addItems_page)
         
         self.inventory_animation_layout.addWidget(self.inventory_menu)
         
@@ -200,7 +198,7 @@ class Sidebar(QFrame):
         if self.inventory_animation_container.maximumHeight() == 0:
             # Show animation - expand
             self.inventory_animation.setEndValue(content_height)
-            self.inventory_button.setText("INVENTORY ▲")  # Change arrow direction
+            self.inventory_button.setText("INVENTORY")  # Change arrow direction
             
             # Hide other menus
             self.collapse_other_menus("inventory")
@@ -231,7 +229,7 @@ class Sidebar(QFrame):
         if current_menu != "inventory":
             self.inventory_animation.setEndValue(0)
             self.inventory_animation.start()
-            self.inventory_button.setText("INVENTORY ▼")
+            self.inventory_button.setText("INVENTORY ")
             self.inventory_button.setChecked(False)
     
     def collapse_all_menus(self):
@@ -279,14 +277,11 @@ class Sidebar(QFrame):
         self.createChallan_window.showMaximized()
         
     def open_manageInvoice_page(self):
-        # Assuming you have a main_content widget where pages are displayed
-        """self.clear_main_content()"""
         self.manageInvoice_window = ManageInvoice()
-        """self.main_content_layout.addWidget(self.manage_invoice_page)"""
         self.manageInvoice_window.show()
         self.manageInvoice_window.showMaximized()
 
-    def open_addItems_page(self):
-        self.addItems_window=AddItems_Page()
-        self.addItems_window.show()
-        self.addItems_window.showMaximized()
+    def open_manageChallan_page(self):
+        self.manageChallan_window=Manage_Challan()
+        self.manageChallan_window.show()
+        self.manageChallan_window.showMaximized()
