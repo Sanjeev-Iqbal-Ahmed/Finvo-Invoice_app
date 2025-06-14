@@ -57,7 +57,7 @@ class Manage_Challan(QWidget):
                 border-radius: 3px;
             }
             QPushButton {
-                background-color: #F4E7E1;
+                background-color: white;
                 color: black;
             }
             QPushButton:hover {
@@ -123,12 +123,14 @@ class Manage_Challan(QWidget):
         self.date_from = QDateEdit()
         self.date_from.setCalendarPopup(True)
         self.date_from.setDate(QDate.currentDate().addMonths(-1))
+        self.date_from.setStyleSheet("background-color:white;")
         
         date_to_label = QLabel("to")
         
         self.date_to = QDateEdit()
         self.date_to.setCalendarPopup(True)
         self.date_to.setDate(QDate.currentDate())
+        self.date_to.setStyleSheet("background-color:white;")
         
         self.apply_date_filter = QPushButton("Apply")
         self.apply_date_filter.clicked.connect(self.apply_filters)

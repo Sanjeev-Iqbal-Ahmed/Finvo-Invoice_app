@@ -64,6 +64,24 @@ def create_tables():
     )
     """)
 
+    # Invoices Taxes Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS invoice_taxes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_id INTEGER NOT NULL,
+            sgst_amount REAL DEFAULT 0.0,
+            cgst_amount REAL DEFAULT 0.0,
+            igst_amount REAL DEFAULT 0.0,
+            tax_total REAL DEFAULT 0.0,
+            FOREIGN KEY (invoice_id) REFERENCES invoices(id)
+        )
+    ''')
+    # Check if 'gst_percent' column already exists
+    cursor.execute("PRAGMA table_info(invoice_taxes);")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "gst_percent" not in columns:
+        cursor.execute("ALTER TABLE invoice_taxes ADD COLUMN gst_percent REAL NOT NULL DEFAULT 0.0")
+
     #Create Admin or Company_info table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS company_info (
@@ -135,8 +153,33 @@ def create_tables():
     # Create indexes for better performance
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_challan_no ON challans (challan_no)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_challan_items_challan_id ON challan_items (challan_id)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_challans_date ON challans (date)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_challans_date ON challans (date)')  
+
+    # Create customers table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_name TEXT NOT NULL,
+            address TEXT NOT NULL,
+            state TEXT NOT NULL,
+            state_code TEXT NOT NULL,
+            gstin TEXT,
+            phone TEXT
+        )
+    ''')
+
+    # Create index on customer_name for faster searches
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_customer_name 
+        ON customers(customer_name)
+    ''')
     
+    # Create index on gstin for faster searches
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_gstin 
+        ON customers(gstin)
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -442,6 +485,48 @@ def update_payment_status(invoice_id, new_status):
             conn.close()
         return False
     
+def calculate_and_insert_invoice_taxes(invoice_id: int):
+
+    conn = sqlite3.connect('invoice_app.db')
+    cursor = conn.cursor()
+
+    # 1. Group items by GST percent and sum their totals
+    cursor.execute("""
+        SELECT gst_percent, SUM(total) AS taxable_total
+        FROM invoice_items
+        WHERE invoice_id = ?
+        GROUP BY gst_percent
+    """, (invoice_id,))
+    
+    gst_groups = cursor.fetchall()
+
+    for gst_percent, taxable_total in gst_groups:
+        gst_percent = float(gst_percent)
+        taxable_total = float(taxable_total)
+
+        if gst_percent == 0:
+            sgst = cgst = igst = total_tax = 0.0
+        elif gst_percent in (5, 12, 18, 28):  # Assume intra-state
+            sgst = taxable_total * (gst_percent / 2) / 100
+            cgst = taxable_total * (gst_percent / 2) / 100
+            igst = 0.0
+            total_tax = sgst + cgst
+        else:
+            # Handle IGST-only case (inter-state)
+            sgst = cgst = 0.0
+            igst = taxable_total * gst_percent / 100
+            total_tax = igst
+
+        # 2. Insert the tax summary for this GST rate
+        cursor.execute("""
+            INSERT INTO invoice_taxes (invoice_id, gst_percent, sgst_amount, cgst_amount, igst_amount, tax_total)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (invoice_id, gst_percent, sgst, cgst, igst, total_tax))
+
+    conn.commit()
+    conn.close()
+
+
 def save_company_info(data):
     """
     Save or update the company information in a single-row table.
@@ -574,6 +659,9 @@ def get_invoice_summary():
             "pending_bills": 0,
             "due_amount": 0.0
         }
+
+     # TAX SECTION
+
 
      #  INVENTORY SECTION
 
@@ -1256,3 +1344,105 @@ create_tables()
 
 if __name__ == "__main__":
     print("Database initialization completed")
+
+
+        # CUSTOMERS SECTION
+
+def save_customer(customer_data):
+    """Save customer data to database"""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO customers (customer_name, address, state, state_code, gstin, phone)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            customer_data['customer_name'],
+            customer_data['address'],
+            customer_data['state'],
+            customer_data['state_code'],
+            customer_data['gstin'],
+            customer_data['phone']
+        ))
+        
+        conn.commit()
+        customer_id = cursor.lastrowid
+        return True, customer_id, "Customer saved successfully!"
+        
+    except sqlite3.Error as e:
+        return False, None, f"Database error: {str(e)}"
+    finally:
+        conn.close()
+
+def update_customer(customer_id, customer_data):
+    """Update existing customer data"""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE customers 
+            SET customer_name=?, address=?, state=?, state_code=?, gstin=?, phone=?
+            WHERE id=?
+        ''', (
+            customer_data['customer_name'],
+            customer_data['address'],
+            customer_data['state'],
+            customer_data['state_code'],
+            customer_data['gstin'],
+            customer_data['phone'],
+            customer_id
+        ))
+        
+        conn.commit()
+        return True, "Customer updated successfully!"
+        
+    except sqlite3.Error as e:
+        return False, f"Database error: {str(e)}"
+    finally:
+        conn.close()
+
+def get_all_customers():
+    """Retrieve all customers from database"""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('SELECT * FROM customers ORDER BY customer_name')
+        customers = cursor.fetchall()
+        return customers
+    except sqlite3.Error as e:
+        print(f"Database error: {str(e)}")
+        return []
+    finally:
+        conn.close()
+
+def get_customer_by_id(customer_id):
+    """Retrieve a specific customer by ID"""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('SELECT * FROM customers WHERE id=?', (customer_id,))
+        customer = cursor.fetchone()
+        return customer
+    except sqlite3.Error as e:
+        print(f"Database error: {str(e)}")
+        return None
+    finally:
+        conn.close()
+
+def delete_customer(customer_id):
+    """Delete a customer from database"""
+    conn = connect()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM customers WHERE id=?', (customer_id,))
+        conn.commit()
+        return True, "Customer deleted successfully!"
+    except sqlite3.Error as e:
+        return False, f"Database error: {str(e)}"
+    finally:
+        conn.close()

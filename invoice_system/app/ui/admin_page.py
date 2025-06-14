@@ -21,11 +21,11 @@ class AdminPage(QDialog):
                 background-color: #A6AEBF; 
                 color: #333333; font-weight:bold;
             }
-            QLineEdit {
+            QLineEdit,QTextEdit {
                 background-color: #F8FAFC;
                 border: 1px solid #cccccc;
                 padding: 5px;
-                border-radius: 3px;
+                border-radius: 3px;font-weight:normal;
             }
             QPushButton {
                 padding: 8px 15px;

@@ -3,6 +3,8 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QStackedWidget, 
     QGridLayout, QFrame, QSizePolicy, QPushButton
 )
+from .add_customer import Add_Customer
+from .edit_customer import Edit_Customer
 
 class HoverBox(QFrame):
     def __init__(self, title, value="", parent=None):
@@ -196,14 +198,14 @@ class CustomerWidget(QWidget):
         main_layout.addStretch()
 
     def add_customer(self):
-        """Function to handle add customer button click"""
-        print("Add Customer clicked")
-        # Implement your add customer functionality here
+        self.addCustomer_window=Add_Customer()
+        self.addCustomer_window.show()
+        self.addCustomer_window.setMinimumSize(700,450)
+        
         
     def edit_customer(self):
-        """Function to handle edit customer button click"""
-        print("Edit Customer clicked")
-        # Implement your edit customer functionality here
+        self.editCustomer_window=Edit_Customer()
+        self.editCustomer_window.show()
         
     def update_total_customers(self, count):
         """Updates the total customers display"""

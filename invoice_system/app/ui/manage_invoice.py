@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QPushButton, QScrollArea, QDialog, QDateEdit, QFileDialog,
     QFrame, QGridLayout, QHeaderView, QSizePolicy, QComboBox, QMessageBox, QDialogButtonBox
 )
-from PySide6.QtGui import QBrush, QColor, QIcon
+from PySide6.QtGui import QBrush, QColor, QIcon,QFont
 from ..models.db_manager import get_all_invoices, get_invoice, delete_invoice,update_payment_status
 from .invoice_preview import InvoicePreviewWindow
 from .create_invoice import CreateInvoice
@@ -41,7 +41,7 @@ class ManageInvoice(QWidget):
                 color: #333333; font-weight:bold;
             }
             QTableWidget { 
-                background-color: #FAF1E6;
+                background-color: white;
                 gridline-color: #cccccc;
             }
             QLineEdit {
@@ -57,8 +57,9 @@ class ManageInvoice(QWidget):
                 border-radius: 3px;
             }
             QPushButton {
-                background-color: #F4E7E1;
+                background-color: white;
                 color: black;
+                font-weight:bold;
             }
             QPushButton:hover {
                 background-color: #7070b8;
@@ -126,7 +127,7 @@ class ManageInvoice(QWidget):
         search_layout = QHBoxLayout()
         search_label = QLabel("Search:")
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search by invoice #, customer name...")
+        self.search_input.setPlaceholderText("Search by invoice no., customer name")
         self.search_input.textChanged.connect(self.apply_filters)
         search_layout.addWidget(search_label)
         search_layout.addWidget(self.search_input)
@@ -152,12 +153,14 @@ class ManageInvoice(QWidget):
         self.date_from = QDateEdit()
         self.date_from.setCalendarPopup(True)
         self.date_from.setDate(QDate.currentDate().addMonths(-1))
+        self.date_from.setStyleSheet("background-color:white;")
         
         date_to_label = QLabel("to")
         
         self.date_to = QDateEdit()
         self.date_to.setCalendarPopup(True)
         self.date_to.setDate(QDate.currentDate())
+        self.date_to.setStyleSheet("background-color:white;")
         
         self.apply_date_filter = QPushButton("Apply")
         self.apply_date_filter.clicked.connect(self.apply_filters)
@@ -183,9 +186,12 @@ class ManageInvoice(QWidget):
         self.invoices_table.setColumnCount(8)
         
         # Set headers
-        headers = ["Invoice #", "Date", "Customer Name", "Items", "Grand Total", "Payment Status", "Actions", "ID"]
+        headers = ["Invoice No.", "Date", "Customer Name", "Items", "Grand Total", "Payment Status", "Actions", "ID"]
         self.invoices_table.setHorizontalHeaderLabels(headers)
-        
+        header_font = QFont()
+        header_font.setBold(True)
+        self.invoices_table.horizontalHeader().setFont(header_font)
+
         # Hide the ID column which we'll use internally
         self.invoices_table.setColumnHidden(7, True)
         
@@ -208,11 +214,13 @@ class ManageInvoice(QWidget):
         
         # Export button
         self.export_button = QPushButton("Export to CSV")
+        self.export_button.setStyleSheet("background-color:#44aa44;color:white;font-weight:bold")
         self.export_button.clicked.connect(self.export_to_csv)
         buttons_layout.addWidget(self.export_button) 
         
         # Refresh button
         self.refresh_button = QPushButton("Refresh")
+        self.refresh_button.setStyleSheet("background-color:#44aa44;color:white;font-weight:bold")
         self.refresh_button.clicked.connect(self.load_invoices)
         buttons_layout.addWidget(self.refresh_button)
         
@@ -223,6 +231,9 @@ class ManageInvoice(QWidget):
         try:
             # Clear existing table
             self.invoices_table.setRowCount(0)
+            normal_font = QFont()
+            normal_font.setBold(False)
+            self.invoices_table.setStyleSheet("QTableWidget { font-weight: normal; }")
             
             # Get all invoices from database - FIXED: Using get_all_invoices() instead of get_invoice()
             invoices = get_all_invoices()
@@ -277,7 +288,7 @@ class ManageInvoice(QWidget):
 
                 # View button
                 view_btn = QPushButton("View")
-                view_btn.setToolTip("View Invoice")
+                view_btn.setStyleSheet("font-weight:bold;background-color:#555599;color:white")
                 view_btn.clicked.connect(lambda checked, id=invoice['id']: self.view_invoice(id))
                 actions_layout.addWidget(view_btn)
 
@@ -286,8 +297,7 @@ class ManageInvoice(QWidget):
 
                 if current_status == 'Pending':
                     toggle_btn = QPushButton("Mark Paid")
-                    toggle_btn.setStyleSheet("background-color: #0D4715; color: white;")
-                    toggle_btn.setToolTip("Change status to Paid")
+                    toggle_btn.setStyleSheet("background-color: #0D4715; color: white;font-weight:bold")
                     new_status = 'Paid'
 
                     toggle_btn.clicked.connect(
@@ -305,7 +315,7 @@ class ManageInvoice(QWidget):
 
                 # Delete button
                 delete_btn = QPushButton("Delete")
-                delete_btn.setToolTip("Delete Invoice")
+                delete_btn.setStyleSheet("font-weight:bold;background-color:#cc4444;color:white")
                 delete_btn.clicked.connect(lambda checked, id=invoice['id']: self.delete_invoice(id))
                 actions_layout.addWidget(delete_btn)
 

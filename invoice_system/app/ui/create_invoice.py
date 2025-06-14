@@ -4,11 +4,12 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QPushButton, QScrollArea,QDialog,
     QFrame, QGridLayout, QHeaderView, QSizePolicy, QComboBox,QMessageBox,QDialogButtonBox
 )
+import sqlite3
 import datetime
 import time 
 from PySide6.QtGui import QFont, QKeyEvent
 from .invoice_preview import InvoicePreviewWindow
-from ..models.db_manager import create_tables, save_invoice
+from ..models.db_manager import create_tables, save_invoice,calculate_and_insert_invoice_taxes
 
 class CustomTableWidget(QTableWidget):
     def __init__(self, rows, cols, parent=None):
@@ -293,7 +294,7 @@ class CreateInvoice(QWidget):
         gst_layout = QGridLayout(gst_frame)
         
         # Right side - GST rates
-        gst_rates = ["1.25%", "1.5%", "2.5%", "3%", "6%", "9%", "14%"]
+        gst_rates = ["0%", "0.25%", "3%", "5%", "12%", "18%", "28%"]
         for i, rate in enumerate(gst_rates):
             gst_layout.addWidget(QLabel(rate), 0, i+2)
         
@@ -366,7 +367,7 @@ class CreateInvoice(QWidget):
         }
 
         # Rate reference
-        gst_rates = ["1.25%", "1.5%", "2.5%", "3%", "6%", "9%", "14%"]
+        gst_rates = ["0%", "0.25%", "3%", "5%", "12%", "18%", "28%"]
         gst_rate_values = [float(rate.strip('%')) for rate in gst_rates]
 
         for row in range(self.items_table.rowCount()):
@@ -484,7 +485,6 @@ class CreateInvoice(QWidget):
         return item.text() if item else ""
 
     def save_invoice_to_db(self):
-        
         """Open payment status dialog before saving the invoice"""
         payment_status = self.get_payment_status()
         
@@ -499,7 +499,7 @@ class CreateInvoice(QWidget):
             if not self.invoice_no.text():
                 QMessageBox.warning(self, "Missing Field", "Invoice number is required.")
                 return
-    
+
             # Try to parse grand total as float if provided
             grand_total = 0.0
             if self.grand_total.text():
@@ -575,6 +575,15 @@ class CreateInvoice(QWidget):
         
             if invoice_id:
                 self.current_invoice_id = invoice_id
+                
+                # FIXED: Replace save_invoice_taxes with calculate_and_insert_invoice_taxes
+                try:
+                    calculate_and_insert_invoice_taxes(invoice_id)
+                    print(f"Tax calculations completed for invoice {invoice_id}")
+                except Exception as tax_error:
+                    print(f"Warning: Failed to calculate taxes for invoice {invoice_id}: {tax_error}")
+                    # Continue with success message even if tax calculation fails
+                
                 QMessageBox.information(self, "Success", f"Invoice saved successfully with payment status: {payment_status}")
                 self.show_invoice_preview()
 
@@ -639,6 +648,32 @@ class CreateInvoice(QWidget):
         else:
             # User canceled
             return None
+
+    def save_invoice_taxes(self, invoice_id):
+        """Save calculated tax amounts to database"""
+        try:
+            conn = sqlite3.connect('invoice_app.db')
+            cursor = conn.cursor()
+            
+            # Get the accumulated tax values from GST fields
+            for i in range(7):  # 7 GST rates
+                sgst_amount = float(self.gst_fields["SGST"][i].text()) if self.gst_fields["SGST"][i].text() else 0.0
+                cgst_amount = float(self.gst_fields["CGST"][i].text()) if self.gst_fields["CGST"][i].text() else 0.0
+                igst_amount = float(self.gst_fields["IGST"][i].text()) if self.gst_fields["IGST"][i].text() else 0.0
+                tax_total = float(self.gst_fields["Taxation"][i].text()) if self.gst_fields["Taxation"][i].text() else 0.0
+                
+                # Only insert if there are non-zero values
+                if sgst_amount > 0 or cgst_amount > 0 or igst_amount > 0:
+                    cursor.execute('''
+                        INSERT INTO invoice_taxes (invoice_id, sgst_amount, cgst_amount, igst_amount, tax_total)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (invoice_id, sgst_amount, cgst_amount, igst_amount, tax_total))
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            print(f"Error saving tax data: {e}")
 
     def show_invoice_preview(self):
         """Open the invoice preview window"""
