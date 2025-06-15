@@ -1409,7 +1409,7 @@ def get_all_customers():
     cursor = conn.cursor()
     
     try:
-        cursor.execute('SELECT * FROM customers ORDER BY customer_name')
+        cursor.execute('SELECT * FROM customers ORDER BY id')
         customers = cursor.fetchall()
         return customers
     except sqlite3.Error as e:
