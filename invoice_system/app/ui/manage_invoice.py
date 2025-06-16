@@ -231,9 +231,7 @@ class ManageInvoice(QWidget):
         try:
             # Clear existing table
             self.invoices_table.setRowCount(0)
-            normal_font = QFont()
-            normal_font.setBold(False)
-            self.invoices_table.setStyleSheet("QTableWidget { font-weight: normal; }")
+            self.invoices_table.setStyleSheet("QTableWidget { font-weight:600; }")
             
             # Get all invoices from database - FIXED: Using get_all_invoices() instead of get_invoice()
             invoices = get_all_invoices()
@@ -470,10 +468,4 @@ class ManageInvoice(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to export data: {str(e)}")
     
-    def create_new_invoice(self):
-        """Open the Create Invoice window"""
-        try:
-            create_window = CreateInvoice(self)
-            create_window.show()
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to open create invoice window: {str(e)}")
+    

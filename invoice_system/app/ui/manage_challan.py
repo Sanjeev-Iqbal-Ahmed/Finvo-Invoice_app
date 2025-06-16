@@ -41,7 +41,7 @@ class Manage_Challan(QWidget):
                 color: #333333; font-weight:bold;
             }
             QTableWidget { 
-                background-color: #FAF1E6;
+                background-color: white;
                 gridline-color: #cccccc;
             }
             QLineEdit {
@@ -180,11 +180,13 @@ class Manage_Challan(QWidget):
         
         # Export button
         self.export_button = QPushButton("Export to CSV")
+        self.export_button.setStyleSheet("background-color:#44aa44;color:white;font-weight:bold")
         self.export_button.clicked.connect(self.export_to_csv)
         buttons_layout.addWidget(self.export_button) 
         
         # Refresh button
         self.refresh_button = QPushButton("Refresh")
+        self.refresh_button.setStyleSheet("background-color:#44aa44;color:white;font-weight:bold")
         self.refresh_button.clicked.connect(self.load_challans)
         buttons_layout.addWidget(self.refresh_button)
         
@@ -195,7 +197,8 @@ class Manage_Challan(QWidget):
         try:
             # Clear existing table
             self.challans_table.setRowCount(0)
-            
+            self.challans_table.setStyleSheet("QTableWidget { font-weight:600; }")
+
             # Get all challans from database
             challans_data = get_all_challans()
             
@@ -259,6 +262,7 @@ class Manage_Challan(QWidget):
                 
                 # View button
                 view_btn = QPushButton("View")
+                view_btn.setStyleSheet("font-weight:bold;background-color:#555599;color:white")
                 view_btn.setToolTip("View Challan")
                 challan_id = challan.get('id')
                 view_btn.clicked.connect(lambda checked, id=challan_id: self.view_challan(id))
@@ -266,6 +270,7 @@ class Manage_Challan(QWidget):
                 
                 # Delete button
                 delete_btn = QPushButton("Delete")
+                delete_btn.setStyleSheet("font-weight:bold;background-color:#cc4444;color:white")
                 delete_btn.setToolTip("Delete Challan")
                 delete_btn.clicked.connect(lambda checked, id=challan_id: self.delete_challan(id))
                 actions_layout.addWidget(delete_btn)

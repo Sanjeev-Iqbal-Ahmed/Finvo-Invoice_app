@@ -71,14 +71,16 @@ class CreateInvoice(QWidget):
                 color: #333333; font-weight:bold;
             }
             QTableWidget { 
-                background-color: #FAF1E6;
+                background-color: white;
                 gridline-color: #cccccc;
+                font-weight:600;
             }
             QLineEdit {
                 background-color: #F8FAFC;
                 border: 1px solid #cccccc;
                 padding: 5px;
                 border-radius: 3px; 
+                font-weight:600;
             }
             QComboBox {
                 background-color: white;

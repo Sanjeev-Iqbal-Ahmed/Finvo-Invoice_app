@@ -34,7 +34,7 @@ class HoverBox(QFrame):
 
         self.value_label = QLabel(value)
         self.value_label.setAlignment(Qt.AlignCenter)
-        self.value_label.setStyleSheet("font-size: 16px; color: white; margin-top: 10px;")
+        self.value_label.setStyleSheet("font-size: 20px; font-weight: bold;color: white; margin-top: 10px;")
 
         layout.addWidget(self.title_label)
         layout.addWidget(self.value_label)
@@ -60,7 +60,7 @@ class HoverBox(QFrame):
             }
         """)
         self.title_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #2D3250;")
-        self.value_label.setStyleSheet("font-size: 16px; margin-top: 10px; color: #2D3250;")
+        self.value_label.setStyleSheet("font-size: 20px; font-weight: bold;margin-top: 10px; color: #2D3250;")
 
         super().enterEvent(event)
 
@@ -78,7 +78,7 @@ class HoverBox(QFrame):
             }
         """)
         self.title_label.setStyleSheet("font-size: 24px; font-weight: bold; color: white;")
-        self.value_label.setStyleSheet("font-size: 16px; margin-top: 10px; color: white;")
+        self.value_label.setStyleSheet("font-size: 20px;font-weight: bold; margin-top: 10px; color: white;")
 
         super().leaveEvent(event)
 
@@ -168,7 +168,7 @@ class CustomerWidget(QWidget):
         main_layout.setSpacing(20)
 
         # Create Hover Box and Buttons
-        self.total_customers_box = HoverBox("TOTAL CUSTOMERS:", "0")
+        self.total_customers_box = HoverBox("TOTAL CUSTOMERS:", "5")
         self.add_customer_button = StyledButton("ADD")
         self.edit_customer_button = StyledButton("EDIT")
 
@@ -206,6 +206,7 @@ class CustomerWidget(QWidget):
     def edit_customer(self):
         self.editCustomer_window=Edit_Customer()
         self.editCustomer_window.show()
+        self.editCustomer_window.showMaximized()
         
     def update_total_customers(self, count):
         """Updates the total customers display"""

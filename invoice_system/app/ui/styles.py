@@ -9,7 +9,7 @@ def load_stylesheet():
     
     /* Main background */
     #mainBackground {
-        background-color: grey;
+        background-color: #2C3E50;
         
     }
     
@@ -26,7 +26,7 @@ def load_stylesheet():
     }
     
     #sidebarButton {
-        color: grey;
+        color: 	#E0E0E0;
         background-color: transparent;
         border: none;
         border-radius: 4px;
@@ -38,31 +38,31 @@ def load_stylesheet():
     }
     
     #sidebarButton:hover {
-        color: #9370DB;
+        color: #A785F5;
         background-color: rgba(255, 255, 255, 0.1);
         font-size:16px;font-weight: bold;
     }
     
     #sidebarButton:checked {
-        color: #9370DB;
+        color: #A785F5;
         background-color: rgba(147, 112, 219, 0.1);
         font-size:16px;font-weight: bold;
     }
     
     #subMenuButton {
-        color: #aaaaaa;
+        color: #CCCCCC;
         background-color: transparent;
         border: none;
         border-radius: 4px;
         padding: 5px;
         text-align: left;
-        font-size: 12px;font-weight: bold;
+        font-size: 12px;font-weight: 800;
     }
     
     #subMenuButton:hover {
         color: white;
         background-color: rgba(255, 255, 255, 0.1);font-size:15px;
-        font-weight: bold;
+        font-weight: 800;
     }
     
     #bulletPoint {
@@ -73,7 +73,7 @@ def load_stylesheet():
     
     /* Header styles */
     #appTitle {
-        color: #ffffff;
+        color: white;         
         font-size: 20px;
         font-weight: bold;
     }
@@ -82,12 +82,12 @@ def load_stylesheet():
         color: #ffffff;
         font-size: 14px;
         padding: 6px 12px;
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: #8E24AA;
         border-radius: 4px;font-weight: bold;
     }
     
     #adminButton:hover {
-        background-color: rgba(255, 255, 255, 0.2);font-weight: bold;
+        background-color: #6A1B9A ;font-weight: bold;
     }
     
     #adminSidebarButton {

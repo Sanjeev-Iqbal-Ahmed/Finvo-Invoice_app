@@ -28,7 +28,7 @@ class AddItems_Page(QWidget):
                 background-color: #F8FAFC;
                 border: 1px solid #cccccc;
                 padding: 5px;
-                border-radius: 3px;font-weight:normal;
+                border-radius: 3px;font-weight:600;
             }
             QPushButton {
                 padding: 8px 15px;
@@ -49,11 +49,11 @@ class AddItems_Page(QWidget):
                border: 1px solid #cccccc;
                 padding: 5px;
                 border-radius: 3px;
-                font-weight:normal;
+                font-weight:600;
             }
              QComboBox QAbstractItemView {
                 background-color: white;
-                font-weight:normal;
+                font-weight:600;
             }
             #clearButton {
                 background-color: #666666;

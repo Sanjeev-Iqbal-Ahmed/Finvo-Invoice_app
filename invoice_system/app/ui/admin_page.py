@@ -25,7 +25,7 @@ class AdminPage(QDialog):
                 background-color: #F8FAFC;
                 border: 1px solid #cccccc;
                 padding: 5px;
-                border-radius: 3px;font-weight:normal;
+                border-radius: 3px;font-weight:600;
             }
             QPushButton {
                 padding: 8px 15px;

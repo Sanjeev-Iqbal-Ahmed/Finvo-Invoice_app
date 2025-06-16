@@ -43,6 +43,7 @@ class EditCustomerDialog(QDialog):
                 padding: 8px;
                 border-radius: 4px;
                 font-size: 12px;
+                font-weight:600;
             }
             QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
                 border: 2px solid #555599;
@@ -300,7 +301,7 @@ class Edit_Customer(QWidget):
                 border: 1px solid #cccccc;
                 padding: 5px;
                 border-radius: 3px;
-                font-weight: normal;
+                font-weight: 600;
             }
             QComboBox QAbstractItemView {
                 background-color: white;  /* Dropdown list background */
@@ -332,7 +333,7 @@ class Edit_Customer(QWidget):
                 background-color: white;
                 border: 1px solid #cccccc;
                 border-radius: 5px;
-                font-weight: normal;
+                font-weight: 600;
                 gridline-color: #e0e0e0;
             }
             QTableWidget::item {

@@ -30,7 +30,7 @@ class Add_Customer(QWidget):
                 border: 1px solid #cccccc;
                 padding: 5px;
                 border-radius: 3px;
-                font-weight:normal;
+                font-weight:600;
             }
             QPushButton {
                 padding: 8px 15px;
@@ -51,7 +51,7 @@ class Add_Customer(QWidget):
                 border: 1px solid #cccccc;
                 padding: 5px;
                 border-radius: 3px;
-                font-weight:normal;
+                font-weight:600;
             }
             QComboBox QAbstractItemView {
                 background-color: white;
