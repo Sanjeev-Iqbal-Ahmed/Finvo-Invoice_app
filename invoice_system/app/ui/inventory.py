@@ -201,7 +201,7 @@ class InventoryWidget(QWidget):
     def add_inventory(self):
         self.add_inventory_window=AddItems_Page()
         self.add_inventory_window.show()
-        self.add_inventory_window.showMaximized()
+        self.add_inventory_window.setMinimumSize(700,550)
         
     def view_inventory(self):
         self.inventory_view_window=InventoryViewPage()

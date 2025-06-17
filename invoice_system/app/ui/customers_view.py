@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QGridLayout, QFrame, QSizePolicy, QPushButton
 )
 from .add_customer import Add_Customer
-from .edit_customer import Edit_Customer
+from .customer_management import Edit_Customer
 
 class HoverBox(QFrame):
     def __init__(self, title, value="", parent=None):
@@ -34,7 +34,7 @@ class HoverBox(QFrame):
 
         self.value_label = QLabel(value)
         self.value_label.setAlignment(Qt.AlignCenter)
-        self.value_label.setStyleSheet("font-size: 20px; font-weight: bold;color: white; margin-top: 10px;")
+        self.value_label.setStyleSheet("font-size: 24px; font-weight: bold;color: white; margin-top: 10px;")
 
         layout.addWidget(self.title_label)
         layout.addWidget(self.value_label)
@@ -60,7 +60,7 @@ class HoverBox(QFrame):
             }
         """)
         self.title_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #2D3250;")
-        self.value_label.setStyleSheet("font-size: 20px; font-weight: bold;margin-top: 10px; color: #2D3250;")
+        self.value_label.setStyleSheet("font-size: 24px; font-weight: bold;margin-top: 10px; color: #2D3250;")
 
         super().enterEvent(event)
 
@@ -78,7 +78,7 @@ class HoverBox(QFrame):
             }
         """)
         self.title_label.setStyleSheet("font-size: 24px; font-weight: bold; color: white;")
-        self.value_label.setStyleSheet("font-size: 20px;font-weight: bold; margin-top: 10px; color: white;")
+        self.value_label.setStyleSheet("font-size: 24px;font-weight: bold; margin-top: 10px; color: white;")
 
         super().leaveEvent(event)
 

@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QGroupBox, QCheckBox
 )
 from PySide6.QtGui import QFont, QColor, QPalette
+from .add_items import AddItems_Page
 from ..models.db_manager import (
     get_all_inventory_items, delete_inventory_item, 
     update_inventory_item, search_inventory_items,
@@ -489,6 +490,10 @@ class InventoryViewPage(QWidget):
         self.delete_button.clicked.connect(self.delete_selected_item)
         self.delete_button.setEnabled(False)
         
+        self.add_item_btn=QPushButton("Add Item")
+        self.add_item_btn.setObjectName("refreshButton")
+        self.add_item_btn.clicked.connect(self.add_item)
+
         self.export_button = QPushButton("Export Data")
         self.export_button.setObjectName("exportButton")
         self.export_button.clicked.connect(self.export_data)
@@ -496,6 +501,7 @@ class InventoryViewPage(QWidget):
         buttons_layout.addWidget(self.edit_button)
         buttons_layout.addWidget(self.delete_button)
         buttons_layout.addStretch()
+        buttons_layout.addWidget(self.add_item_btn)
         buttons_layout.addWidget(self.export_button)
         
         main_layout.addLayout(buttons_layout)
@@ -772,3 +778,8 @@ class InventoryViewPage(QWidget):
             QMessageBox.warning(self, "Export Error", "CSV module not available!")
         except Exception as e:
             QMessageBox.critical(self, "Export Error", f"Failed to export data: {str(e)}")
+
+    def add_item(self):
+        self.add_item_window=AddItems_Page()
+        self.add_item_window.show()
+        self.add_item_window.resize(750,500)

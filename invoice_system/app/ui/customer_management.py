@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QFont, QColor
 from ..models.db_manager import create_tables, update_customer, get_all_customers, get_customer_by_id, delete_customer
-
+from .add_customer import Add_Customer
 
 class EditCustomerDialog(QDialog):
     """Dialog for editing customer details."""
@@ -394,7 +394,7 @@ class Edit_Customer(QWidget):
         # Search box
         search_layout.addWidget(QLabel("Search:"))
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search by name, address, state, GSTIN, or phone...")
+        self.search_input.setPlaceholderText("Search by name, address, state, GSTIN, or phone no.")
         self.search_input.textChanged.connect(self.on_search_changed)
         self.search_input.setClearButtonEnabled(True)  # Add clear button
         search_layout.addWidget(self.search_input)
@@ -445,6 +445,10 @@ class Edit_Customer(QWidget):
         
         # Action Buttons
         buttons_layout = QHBoxLayout()
+
+        self.add_cust_btn=QPushButton("Add Customer")
+        self.add_cust_btn.setObjectName("refreshButton")
+        self.add_cust_btn.clicked.connect(self.open_add_cust)
         
         self.edit_button = QPushButton("Edit Selected")
         self.edit_button.setObjectName("refreshButton")
@@ -456,6 +460,7 @@ class Edit_Customer(QWidget):
         self.delete_button.clicked.connect(self.delete_selected_customer)
         self.delete_button.setEnabled(False)
         
+        buttons_layout.addWidget(self.add_cust_btn)
         buttons_layout.addStretch()
         buttons_layout.addWidget(self.edit_button)
         buttons_layout.addWidget(self.delete_button)
@@ -479,10 +484,10 @@ class Edit_Customer(QWidget):
         header.setSectionResizeMode(0, QHeaderView.Fixed)
         header.setSectionResizeMode(1, QHeaderView.Stretch)
         header.setSectionResizeMode(2, QHeaderView.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.Stretch)
+        header.setSectionResizeMode(5, QHeaderView.Stretch)
+        header.setSectionResizeMode(6, QHeaderView.Stretch)
         self.customer_table.setColumnWidth(0, 50)
         
         # Hide ID column
@@ -678,4 +683,8 @@ class Edit_Customer(QWidget):
                     QMessageBox.critical(self, "Error", f"Failed to delete customer: {message}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
-                
+    
+    def open_add_cust(self):
+        self.open_cust_window=Add_Customer()
+        self.open_cust_window.show()
+        self.open_cust_window.setMinimumSize(700,450)
